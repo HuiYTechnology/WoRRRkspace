@@ -1,0 +1,18 @@
+* text=auto
+
+*.py linguist-language=Python
+*.md text
+*.txt text
+*.json text
+*.toml text
+*.yml text
+*.yaml text
+*.csv text
+*.sql text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ttf binary
+*.otf binary
+*.bin binary

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build
+build/
+dist/
+*.egg-info/
+*.spec
+
+# Virtual envs
+.venv/
+env/
+venv/
+*/env/
+*/.venv/
+
+# Conda
+*.conda
+*.pack
+conda_env/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# App data
+user_data/
+cache/
+tmp/
+
+# PyInstaller artifacts
+*.manifest
+*.dll
+*.exe

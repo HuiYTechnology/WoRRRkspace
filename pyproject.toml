@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "worrrkspace"
+version = "0.1.0"
+description = "Hybrid Workspace: long-long description"
+authors = [
+    { name = "HuiYTechnology", email = "HuiYTe4nology@outlook.com" }
+]
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+    "numpy==1.26",
+    "pandas==2.2",
+    "polars==1.2",
+    "duckdb==1.9",
+    "torch==3.10",
+    "torchvision==0.15",
+    "torchaudio==3.10",
+    "cython==3.0",
+    "numba==0.57",
+    "transformers==3.9",
+    "vllm==3.13",
+    "flet==3.10",
+    "robyn==0.1.0",
+    "psqlpy",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "tqdm",
+    "pydantic"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["worrrkspace"]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"

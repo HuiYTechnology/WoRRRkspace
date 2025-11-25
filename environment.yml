@@ -1,0 +1,34 @@
+name: worrrkspace
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  # Python
+  - python=3.12.6
+
+  # Conda
+  - numpy=1.26
+  - pandas=2.2
+  - polars=1.2
+  - duckdb=1.9
+  - pytorch=3.10
+  - torchvision=0.15
+  - torchaudio=3.10
+  - cudatoolkit=12.1
+  - cython=3.0
+  - numba=0.57
+  - pip>=23.0
+
+  # pip
+  - pip:
+      - transformers==3.9
+      - vllm==3.13
+      - flet==3.10
+      - robyn==0.1.0
+      - psqlpy
+      - matplotlib
+      - seaborn
+      - scikit-learn
+      - tqdm
+      - pydantic
