@@ -3,96 +3,87 @@ worrrkspace - LICENSES
 Generated: 2025
 =====================================================
 
-Python 3.12.6
+Python 3.10.12
 License: Python Software Foundation License (PSF)
 URL: https://docs.python.org/3/license.html
 
 -----------------------------------------------------
-NumPy 1.26
+NumPy >=1.24
 License: BSD
 URL: https://numpy.org/license.html
 
-Pandas 2.2
+Pandas >=1.5
 License: BSD
 URL: https://pandas.pydata.org/docs/license.html
 
-Polars 1.2
+Polars >=0.19
 License: Apache 2.0
 URL: https://www.apache.org/licenses/LICENSE-2.0
 
-DuckDB 1.9
+DuckDB >=0.8
 License: MIT
 URL: https://github.com/duckdb/duckdb/blob/master/LICENSE
 
-PyTorch 3.10
+PyTorch >=2.0
 License: BSD
 URL: https://github.com/pytorch/pytorch/blob/main/LICENSE
 
-TorchVision 0.15
+TorchVision >=0.15
 License: BSD
 URL: https://github.com/pytorch/vision/blob/main/LICENSE
 
-Torchaudio 3.10
+Torchaudio >=2.0
 License: BSD
 URL: https://github.com/pytorch/audio/blob/main/LICENSE
 
-cudatoolkit 12.1 (runtime only)
-License: NVIDIA EULA
-URL: https://docs.nvidia.com/cuda/eula/index.html
-Notes: Only runtime libraries included. Full Toolkit not included. GPU driver must be installed by user.
-
-Cython 3.0
+Cython >=0.29
 License: Apache 2.0
 URL: https://cython.org/licence.html
 
-Numba 0.57
+Numba >=0.57
 License: BSD
 URL: https://numba.pydata.org/numba-doc/latest/license.html
 
 -----------------------------------------------------
-Transformers 3.9
+Transformers >=4.28
 License: Apache 2.0
 URL: https://github.com/huggingface/transformers/blob/main/LICENSE
 
-vLLM 3.13
-License: Apache 2.0
-URL: https://github.com/vllm-project/vllm/blob/main/LICENSE
-
-flet 3.10
+flet >=0.8
 License: MIT
 URL: https://github.com/flet-dev/flet/blob/main/LICENSE
 
-Robyn 0.1.0
+Robyn >=0.14
 License: MIT
 URL: https://github.com/robyn-project/robyn/blob/main/LICENSE
 
-psqlpy
+psqlpy >=0.1
 License: MIT
 URL: https://github.com/psqlpy/psqlpy/blob/main/LICENSE
 
-Matplotlib
+Matplotlib >=3.7
 License: PSF / BSD
 URL: https://matplotlib.org/stable/users/license.html
 
-Seaborn
+Seaborn >=0.12
 License: BSD
 URL: https://seaborn.pydata.org/license.html
 
-Scikit-learn
+Scikit-learn >=1.2
 License: BSD
 URL: https://scikit-learn.org/stable/about.html#license
 
-tqdm
+tqdm >=4.65
 License: MPL 2.0
 URL: https://github.com/tqdm/tqdm/blob/master/LICENSE
 
-Pydantic
+Pydantic >=1.10
 License: MIT
 URL: https://github.com/pydantic/pydantic/blob/main/LICENSE
 
 =====================================================
 Notes:
 - All libraries are included under their respective licenses.
-- NVIDIA CUDA Toolkit runtime is included; full toolkit is not included.
-- Users must have NVIDIA GPU drivers installed for CUDA support.
+- Version ranges reflect the tested and compatible versions in the environment.
+- For exact versions, refer to the environment.yml file.
 =====================================================
