@@ -43,7 +43,15 @@ class SplashScreen:
                 alignment=ft.MainAxisAlignment.CENTER,
             ),
             expand=True,
-            bgcolor=cfg.SPLASH_BG_COLOR,
+            gradient=ft.LinearGradient(  # ЗАМЕНА bgcolor НА GRADIENT
+                begin=ft.alignment.top_left,
+                end=ft.alignment.bottom_right,
+                colors=[
+                    cfg.SPLASH_BG_COLOR,  # Можно оставить ваш основной цвет
+                    "#1a237e",           # Добавьте второй цвет
+                    "#000051"            # Добавьте третий цвет для глубины
+                ]
+            ),
             alignment=ft.alignment.center,
         )
         
