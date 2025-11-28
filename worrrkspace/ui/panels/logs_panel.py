@@ -3,9 +3,9 @@
 
 from PyQt6.QtWidgets import QTextEdit
 try:
-    from .base_panel import BasePanel
+    from .base_panel import DraggableDockWidget
 except ImportError:
-    from base_panel import BasePanel
+    from base_panel import DraggableDockWidget
 
 class LogsPanel(DraggableDockWidget):
     def __init__(self, parent=None):

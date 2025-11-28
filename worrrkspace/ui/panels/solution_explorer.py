@@ -4,9 +4,9 @@
 
 from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem
 try:
-    from .base_panel import BasePanel
+    from .base_panel import DraggableDockWidget
 except ImportError:
-    from base_panel import BasePanel
+    from base_panel import DraggableDockWidget
 class SolutionExplorer(DraggableDockWidget):
     def __init__(self, parent=None):
         super().__init__("Обозреватель решений", parent)
