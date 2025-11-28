@@ -5,12 +5,15 @@ import sys
 import subprocess
 from pathlib import Path
 
+current_dir = Path(__file__).parent
+sys.path.insert(0, str(current_dir))
+
 
 def check_dlls_exist():
     """Проверяет наличие скомпилированных DLL файлов"""
     dll_paths = [
-        Path("src/cpp_logger/lib/logger.dll"),
-        Path("src/cpp_calculate/lib/calculate.dll")
+        Path("worrrkspace/src/cpp_logger/lib/logger.dll"),
+        Path("worrrkspace/src/cpp_calculate/lib/calculate.dll")
     ]
     return all(dll.exists() for dll in dll_paths)
 
@@ -28,7 +31,7 @@ def run_build_simple():
     """Запускает сборку C++ компонентов"""
     print("🔨 Запуск сборки C++ компонентов...")
     try:
-        result = subprocess.run([sys.executable, "build_simple.py"],
+        result = subprocess.run([sys.executable, "worrrkspace/build_simple.py"],
                                 capture_output=True, text=True, timeout=300)
         print(result.stdout)
         if result.returncode != 0:
@@ -44,7 +47,7 @@ def run_first_run():
     """Запускает первоначальную настройку"""
     print("Запуск первоначальной настройки...")
     try:
-        result = subprocess.run([sys.executable, "windows\FirstRunWindow.py"],
+        result = subprocess.run([sys.executable, "worrrkspace/windows\FirstRunWindow.py"],
                                 capture_output=True, text=True, timeout=120)
         print(result.stdout)
         if result.returncode != 0:
@@ -63,7 +66,7 @@ def initialize_database():
 
 def create_windows_module():
     """Создает папку windows и копирует туда файлы окон, если их нет"""
-    windows_dir = Path("windows")
+    windows_dir = Path("worrrkspace/windows")
     if not windows_dir.exists():
         print("Создаем папку windows...")
         windows_dir.mkdir(exist_ok=True)

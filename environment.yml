@@ -1,4 +1,4 @@
-name: workspace
+name: worrrkspace
 channels:
   - conda-forge
   - defaults
@@ -13,13 +13,13 @@ dependencies:
   - jupyterlab
   - polars
   - duckdb
+  - pyqt=6
   - pip
   - pip:
-    - torch>=2.0.0
-    - torchvision>=0.15.0
-    - torchaudio>=2.0.0
-    - transformers>=4.28.0
-    - robyn>=0.14.0
-    - psqlpy>=0.1.0
-    - pyqt6
-    - markdown
+      - torch>=2.0.0
+      - torchvision>=0.15.0
+      - torchaudio>=2.0.0
+      - transformers>=4.28.0
+      - robyn>=0.14.0
+      - psqlpy>=0.1.0
+      - markdown

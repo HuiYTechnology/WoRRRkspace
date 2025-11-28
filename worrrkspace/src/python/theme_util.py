@@ -1,4 +1,3 @@
-# theme_util.py
 """
 Утилита для определения системной темы и применения её к QApplication.
 Поддерживает Windows (реестр + PowerShell fallback), macOS, Linux (gnome/kde/env).

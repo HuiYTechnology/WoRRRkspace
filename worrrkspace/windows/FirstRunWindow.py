@@ -16,8 +16,18 @@ from PyQt6 import QtWidgets, QtCore
 
 DEFAULT_ENV_PATH = "db\.env"
 
-# В начале файла first_run.py добавьте импорт
-from src.python.theme_util import SystemThemeDetector
+
+try:
+    from ..src.python.theme_util import SystemThemeDetector
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback: добавляем путь вручную для отладки
+    current_dir = Path(__file__).parent
+    project_root = current_dir.parent.parent
+    src_python_path = project_root / "worrrkspace" / "src" / "python"
+    print(f"Trying to add path: {src_python_path}")
+    sys.path.insert(0, str(src_python_path))
+    from theme_util import SystemThemeDetector
 
 # Замените функцию setup_dark_theme() на:
 def setup_app_theme():
