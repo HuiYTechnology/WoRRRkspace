@@ -3,6 +3,7 @@
 import sys
 import os
 import warnings
+from pathlib import Path
 
 warnings.filterwarnings(
     "ignore",
@@ -19,16 +20,58 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem
 )
 from PyQt6.QtGui import QIcon, QAction
-from src.python.theme_manager import ThemeManager, setup_app_theme
+
+try:
+    from ..src.python.theme_util import SystemThemeDetector
+    from ..src.python.theme_manager import setup_app_theme, ThemeManager
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback: добавляем путь вручную для отладки
+    current_dir = Path(__file__).parent
+    project_root = current_dir.parent.parent
+    src_python_path = project_root / "worrrkspace" / "src" / "python"
+    print(f"Trying to add path: {src_python_path}")
+    sys.path.insert(0, str(src_python_path))
+    from theme_util import SystemThemeDetector
+    from theme_manager import setup_app_theme, ThemeManager
+
 # Импортируем виджеты из отдельных модулей
-from ui.widgets.base_widgets import ProfileDialog
-from ui.widgets.markdown_editor import MarkdownNoteTab
-from ui.widgets.table_editor import TableEditorTab
-from ui.widgets.graph_editor import GraphTab
-from ui.widgets.task_editor import TaskTab
+try:
+    from ..ui.widgets.base_widgets import ProfileDialog
+    from ..ui.widgets.markdown_editor import MarkdownNoteTab
+    from ..ui.widgets.table_editor import TableEditorTab
+    from ..ui.widgets.graph_editor import GraphTab
+    from ..ui.widgets.task_editor import TaskTab
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback: добавляем путь вручную для отладки
+    current_dir = Path(__file__).parent
+    project_root = current_dir.parent.parent
+    widgets_python_path = project_root / "worrrkspace" / "ui" / "widgets"
+    print(f"Trying to add path: {widgets_python_path}")
+    sys.path.insert(0, str(widgets_python_path))
+    from base_widgets import ProfileDialog
+    from markdown_editor import MarkdownNoteTab
+    from table_editor import TableEditorTab
+    from graph_editor import GraphTab
+    from task_editor import TaskTab
 
 # Импортируем панели из новой директории
-from ui.panels import SolutionExplorer, ToolsPanel, ChatPanel, LogsPanel
+try:
+    from ..ui.panels import SolutionExplorer, ToolsPanel, ChatPanel, LogsPanel
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback: добавляем путь вручную для отладки
+    current_dir = Path(__file__).parent
+    project_root = current_dir.parent.parent
+    panels_python_path = project_root / "worrrkspace" / "ui" / "panels"
+    print(f"Trying to add path: {panels_python_path}")
+    sys.path.insert(0, str(panels_python_path))
+    from solution_explorer import SolutionExplorer
+    from tools_panel import ToolsPanel
+    from chat_panel import ChatPanel
+    from logs_panel import LogsPanel
+    
 
 
 class DraggableTabBar(QtWidgets.QTabBar):
@@ -327,13 +370,13 @@ class TopBar(QWidget):
 
 
 class MainWindow(QMainWindow):
-    WORKSPACE_SETTINGS_KEY = "app/workspace"
+    WORKSPACE_SETTINGS_KEY = "app/worrrkspace"
 
     def __init__(self):
         super().__init__()
-        self.settings = QSettings("rrr_company", "rrrr_app")
+        self.settings = QSettings("worrrkspace_company", "worrrkspace_app")
 
-        self.theme_manager = ThemeManager(organization="rrr_company", application="rrrr_app")
+        self.theme_manager = ThemeManager(organization="worrrkspace_company", application="worrrkspace_app")
         self.current_theme = self.theme_manager.current_theme
 
         self.dock_widgets = {}
@@ -475,7 +518,7 @@ class MainWindow(QMainWindow):
             tp = self.tools_panel
             tp.btn_table.clicked.connect(lambda: self._open_placeholder_tab("Таблица"))
             tp.btn_note.clicked.connect(lambda: self._open_placeholder_tab("Заметка"))
-            tp.btn_crm.clicked.connect(lambda: self._open_placeholder_tab("CRM"))
+            # tp.btn_diagramm.clicked.connect(lambda: self._open_placeholder_tab("Диаграмма"))
             tp.btn_chart.clicked.connect(lambda: self._open_placeholder_tab("Граф"))
             tp.btn_task.clicked.connect(lambda: self._open_placeholder_tab("Задача"))
 

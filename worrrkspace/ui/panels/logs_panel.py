@@ -2,7 +2,7 @@
 
 
 from PyQt6.QtWidgets import QTextEdit
-from .base_panel import DraggableDockWidget
+from base_panel import DraggableDockWidget
 
 class LogsPanel(DraggableDockWidget):
     def __init__(self, parent=None):

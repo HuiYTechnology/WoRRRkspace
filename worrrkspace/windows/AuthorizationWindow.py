@@ -7,6 +7,7 @@ warnings.filterwarnings("ignore", message=r".*sipPyTypeDict\(\) is deprecated.*"
 
 import os
 import sys
+from pathlib import Path
 from PyQt6 import uic
 from PyQt6.QtWidgets import (
     QWidget, QApplication, QHBoxLayout, QPushButton,
@@ -27,20 +28,16 @@ if current_dir not in sys.path:
 
 # Попытка импорта SystemThemeDetector
 try:
-    from src.python.theme_util import SystemThemeDetector
-except Exception:
-    try:
-        from theme_util import SystemThemeDetector
-    except Exception:
-        class _Dummy:
-            @staticmethod
-            def get_system_theme(): return "light"
-
-            @staticmethod
-            def apply_system_theme(app, theme=None): pass
-
-
-        SystemThemeDetector = _Dummy()
+    from ..src.python.theme_util import SystemThemeDetector
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback: добавляем путь вручную для отладки
+    current_dir = Path(__file__).parent
+    project_root = current_dir.parent.parent
+    src_python_path = project_root / "worrrkspace" / "src" / "python"
+    print(f"Trying to add path: {src_python_path}")
+    sys.path.insert(0, str(src_python_path))
+    from theme_util import SystemThemeDetector
 
 
 # ==================== FLOATING LABEL ====================

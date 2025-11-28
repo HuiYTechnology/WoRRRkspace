@@ -5,6 +5,7 @@ import os
 import sys
 import re
 import hashlib
+from pathlib import Path
 from PyQt6 import uic
 from PyQt6.QtWidgets import (
     QWidget, QApplication, QMessageBox, QHBoxLayout, QPushButton,

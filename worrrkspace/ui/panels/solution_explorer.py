@@ -3,7 +3,7 @@
 
 
 from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem
-from .base_panel import DraggableDockWidget
+from base_panel import DraggableDockWidget
 
 class SolutionExplorer(DraggableDockWidget):
     def __init__(self, parent=None):

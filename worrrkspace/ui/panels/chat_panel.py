@@ -2,7 +2,7 @@
 
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLineEdit
-from .base_panel import DraggableDockWidget
+from base_panel import DraggableDockWidget
 
 class ChatPanel(DraggableDockWidget):
     def __init__(self, parent=None):
