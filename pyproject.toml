@@ -7,30 +7,35 @@ name = "worrrkspace"
 version = "0.1.0"
 description = "Hybrid Workspace: long-long description"
 authors = [
-    { name = "HuiYTechnology", email = "HuiYTe4nology@outlook.com" }
+{ name = "HuiYTechnology", email = "HuiYTe4nology@outlook.com" },
+{ name = "comodozz", email = "d.dragomir2012@yandex.ru" },
+{ name = "KeYnU", email = "dimka27112007@gmail.com" },
+{ name = "MrPranikof", email = "vaganogannsan@gmail.com" },
+{ name = "WouhouZinG", email = "bushuev.r@outlook.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-    "numpy>=1.24",
-    "pandas>=1.5",
-    "polars>=0.19",
-    "duckdb>=0.8",
-    "torch>=2.0",
-    "torchvision>=0.15",
-    "torchaudio>=2.0",
-    "cython>=0.29",
-    "numba>=0.57",
-    "transformers>=4.28",
-    "flet>=0.8",
-    "robyn>=0.14",
-    "psqlpy>=0.1",
-    "matplotlib>=3.7",
-    "seaborn>=0.12",
-    "scikit-learn>=1.2",
-    "tqdm>=4.65",
-    "pydantic>=1.10"
+"numpy>=1.24",
+"pandas>=1.5",
+"polars>=0.19",
+"duckdb>=0.8",
+"torch>=2.0",
+"torchvision>=0.15",
+"torchaudio>=2.0",
+"cython>=0.29",
+"numba>=0.57",
+"transformers>=4.28",
+"robyn>=0.14",
+"psqlpy>=0.1",
+"matplotlib>=3.7",
+"seaborn>=0.12",
+"scikit-learn>=1.2",
+"tqdm>=4.65",
+"pydantic>=1.10",
+"pyqt6",
+"markdown"
 ]
 
 [tool.setuptools]

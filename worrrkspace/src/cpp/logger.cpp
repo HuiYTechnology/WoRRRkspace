@@ -3,11 +3,13 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
-#include <windows.h>
+#include <windows.h>  // Добавляем для работы с кодировкой
 
 Logger::Logger(const std::string& filename) : filename(filename) {
+    // Создаем папку logs
     system("mkdir logs 2>nul");
 
+    // Устанавливаем кодировку консоли для Windows
     SetConsoleOutputCP(CP_UTF8);
 
     logfile.open("logs/" + filename, std::ios::app);
@@ -20,9 +22,11 @@ void Logger::log(const std::string& level, const std::string& message) {
     std::string timestamp = getCurrentTime();
     logfile << "[" << timestamp << "] [" << level << "] " << message << std::endl;
 
+    // Вывод в консоль с правильной кодировкой
     std::cout << "[" << timestamp << "] [" << level << "] " << message << std::endl;
 }
 
+// ЗАМЕНИТЕ функцию getCurrentTime на:
 std::string Logger::getCurrentTime() {
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);

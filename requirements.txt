@@ -9,9 +9,10 @@ cython>=0.29
 numba>=0.57
 
 transformers>=4.28
-flet>=0.8
 robyn>=0.14
 psqlpy>=0.1
+pyqt6
+markdown
 
 matplotlib>=3.7
 seaborn>=0.12

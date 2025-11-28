@@ -1,7 +1,7 @@
-#pragma once
 #ifndef CALCULATE_H
 #define CALCULATE_H
 
+// Добавляем конфигурацию для MSVC в самое начало
 #include "msvc_config.h"
 
 #include "logger.h"
@@ -74,7 +74,7 @@ public:
     void divideByDigit(int digit);
     bool isNormalized() const;
 
-    // Алгоритм деления
+    // Алгоритм деления (интерфейс; реализация использует надёжный long-division helper)
     BigNumber divideKnuth(const BigNumber& other, int precision) const;
 
     // ОТЛАДОЧНЫЕ МЕТОДЫ
@@ -111,6 +111,7 @@ private:
     static void trimLSBVector(std::vector<int>& a);
 };
 
+// Добавляем в класс Calculator поддержку factorial и улучшаем парсинг
 class Calculator {
 private:
     class Logger* logger;

@@ -1,4 +1,4 @@
-#pragma once
+// calculate.cpp
 #include "calculate.h"
 #include <sstream>
 #include <stack>
@@ -300,6 +300,14 @@ void BigNumber::multiplyByDigit(int digit) {
 bool BigNumber::isNormalized() const {
     if (isZero()) return true;
     return digits.back() >= 5;
+}
+
+void BigNumber::normalize() {
+    // noop: not used in string division approach
+}
+
+void BigNumber::denormalize(int divisor) {
+    // noop
 }
 
 // ------------------ DIVISION: helper long division on decimal strings ------------------
@@ -756,7 +764,7 @@ BigNumber BigNumber::log10(int precision) const {
         throw std::runtime_error("Log10 of non-positive number");
     }
 
-    // Явная обработка специальных случаев чтобы избежать ошибок округления, НАДО ПЕРЕДЕЛАТЬ
+    // Явная обработка специальных случаев чтобы избежать ошибок округления
     BigNumber one("1");
     BigNumber ten("10");
     BigNumber zero_point_one("0.1");
@@ -831,7 +839,7 @@ BigNumber BigNumber::power(const BigNumber& exponent, int precision) const {
         if (exponent.isZero()) {
             throw std::runtime_error("0^0 is undefined");
         }
-        return BigNumber("1");
+        return BigNumber("0");
     }
 
     // Целые показатели степени
@@ -881,6 +889,9 @@ BigNumber BigNumber::operator-() const {
     return this->negate();
 }
 
+
+// calculate.cpp - полностью переписанные sin и cos
+
 // ------------------ Улучшенная редукция углов ------------------
 
 BigNumber BigNumber::mod2Pi(int precision) const {
@@ -905,6 +916,9 @@ BigNumber BigNumber::mod2Pi(int precision) const {
 
 // ------------------ Вспомогательные функции для редукции ------------------
 
+// calculate.cpp - исправленная реализация reduceToFirstQuadrant
+
+// Убираем static из объявления и делаем обычной функцией
 void BigNumber::reduceToFirstQuadrant(const BigNumber& x, BigNumber& reducedX, int& quadrant, int precision) {
     BigNumber pi = BigNumber::pi(precision + 20);
     BigNumber twoPi = pi * BigNumber("2");

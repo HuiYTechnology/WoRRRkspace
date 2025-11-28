@@ -1,4 +1,4 @@
-name: worrrkspace
+name: workspace
 channels:
   - conda-forge
   - defaults
@@ -20,5 +20,6 @@ dependencies:
     - torchaudio>=2.0.0
     - transformers>=4.28.0
     - robyn>=0.14.0
-    - flet>=0.8.0
     - psqlpy>=0.1.0
+    - pyqt6
+    - markdown
