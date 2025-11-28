@@ -1,5 +1,8 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton
-from base_panel import DraggableDockWidget
+try:
+    from .base_panel import BasePanel
+except ImportError:
+    from base_panel import BasePanel
 
 class ToolsPanel(DraggableDockWidget):
     def __init__(self, parent=None):
