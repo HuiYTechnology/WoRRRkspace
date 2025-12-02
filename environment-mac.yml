@@ -1,0 +1,54 @@
+name: worrrkspace
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10.12
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyter
+  - jupyterlab
+  - polars
+  - duckdb
+  - pyqt=6
+  - postgresql
+  - pyarrow
+  - orjson
+  - mlflow
+  
+  # macOS-specific tools
+  - cmake
+  - ninja
+  - make
+  - clangxx  # Clang для C++
+  - clang  # Clang для C
+  - gfortran  # Fortran для macOS
+  
+  # macOS system libs
+  - libcxx  # C++ runtime
+  - libgfortran5
+  - libgfortran
+  - libblas
+  - liblapack
+  - libcblas
+  
+  # GUI dependencies for macOS
+  - qt-main
+  - qt-webengine
+  - qtwebkit
+  
+  - pip
+  
+  - pip:
+      - torch>=2.0.0
+      - torchvision>=0.15.0
+      - torchaudio>=2.0.0
+      - transformers>=4.28.0
+      - robyn>=0.14.0
+      - psqlpy>=0.1.0
+      - markdown
+      - plotly
+      - pyinstaller
+      - py2app  # Для сборки в .app на macOS

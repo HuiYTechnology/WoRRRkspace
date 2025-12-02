@@ -1,5 +1,3 @@
-"""Пока сборка исключительно компиляцией. Доработать!!! Заменить на -O3. Переписать тесты для калькулятора"""
-
 import os
 import subprocess
 import sys
@@ -52,6 +50,104 @@ class ProjectBuilder:
         self.logger.addHandler(console_handler)
 
         self.logger.info(f"Логгер инициализирован. Логи сохраняются в: {log_file}")
+
+    def check_conda_environment(self):
+        """Проверяет, активировано ли conda окружение"""
+        conda_prefix = os.environ.get('CONDA_PREFIX', '')
+        if conda_prefix:
+            self.print_warning(f"⚠️  Обнаружено активированное conda окружение: {conda_prefix}")
+            self.print_warning("Это может вызвать конфликты с MinGW компилятором")
+            self.print_info("Скрипт автоматически исправит окружение для MinGW")
+            return True
+        return False
+
+    def get_clean_mingw_environment(self):
+        """Создает очищенное окружение для MinGW компиляции"""
+        env = os.environ.copy()
+        
+        # Сохраняем важные системные переменные
+        system_vars = {
+            'PATH': env.get('PATH', ''),
+            'TEMP': env.get('TEMP', ''),
+            'TMP': env.get('TMP', ''),
+            'SystemRoot': env.get('SystemRoot', ''),
+            'USERPROFILE': env.get('USERPROFILE', ''),
+            'HOMEPATH': env.get('HOMEPATH', ''),
+            'USERNAME': env.get('USERNAME', ''),
+            'COMPUTERNAME': env.get('COMPUTERNAME', ''),
+            'PUBLIC': env.get('PUBLIC', ''),
+            'OS': env.get('OS', ''),
+            'PROCESSOR_ARCHITECTURE': env.get('PROCESSOR_ARCHITECTURE', ''),
+            'NUMBER_OF_PROCESSORS': env.get('NUMBER_OF_PROCESSORS', ''),
+            'PROCESSOR_IDENTIFIER': env.get('PROCESSOR_IDENTIFIER', ''),
+            'PROCESSOR_LEVEL': env.get('PROCESSOR_LEVEL', ''),
+            'PROCESSOR_REVISION': env.get('PROCESSOR_REVISION', ''),
+        }
+        
+        # Удаляем все conda и VS/VC переменные
+        keys_to_remove = []
+        for key in env.keys():
+            key_upper = key.upper()
+            if any(x in key_upper for x in ['CONDA', 'VS', 'VC', 'MSVC', 'INCLUDE', 'LIB']):
+                # Оставляем только PATH и основные системные переменные
+                if key not in system_vars:
+                    keys_to_remove.append(key)
+        
+        for key in keys_to_remove:
+            env.pop(key, None)
+        
+        # Фильтруем PATH: убираем conda пути, оставляем MinGW и системные
+        original_path = system_vars['PATH']
+        path_parts = original_path.split(';')
+        
+        # Пути, которые нужно оставить
+        allowed_paths = []
+        
+        # Системные пути Windows
+        system_paths = [
+            r'C:\Windows\System32',
+            r'C:\Windows',
+            r'C:\Windows\System32\Wbem',
+            r'C:\Windows\System32\WindowsPowerShell\v1.0',
+            r'C:\Windows\System32\OpenSSH',
+            r'C:\Program Files\Git\cmd',
+            r'C:\Program Files\Git\bin',
+            r'C:\Program Files\Git\usr\bin',
+        ]
+        
+        # Пути MinGW
+        mingw_paths = [
+            r'C:\ProgramData\mingw64\mingw64\bin',
+            r'C:\msys64\mingw64\bin',
+            r'C:\MinGW\bin',
+            r'C:\mingw64\bin',
+            r'C:\Program Files\mingw-w64\bin',
+        ]
+        
+        # Собираем разрешенные пути
+        for path in path_parts:
+            path_lower = path.lower()
+            # Убираем пути с conda
+            if 'conda' in path_lower or 'miniconda' in path_lower or 'anaconda' in path_lower:
+                continue
+            # Оставляем системные пути и MinGW
+            allowed_paths.append(path)
+        
+        # Добавляем системные пути, если их нет
+        for sys_path in system_paths:
+            if os.path.exists(sys_path) and sys_path not in allowed_paths:
+                allowed_paths.insert(0, sys_path)
+        
+        # Добавляем MinGW пути, если они существуют
+        for mingw_path in mingw_paths:
+            if os.path.exists(mingw_path) and mingw_path not in allowed_paths:
+                allowed_paths.insert(0, mingw_path)
+        
+        # Обновляем PATH
+        env['PATH'] = ';'.join(allowed_paths)
+        
+        self.log_debug(f"Очищенное окружение MinGW. Пути PATH: {env['PATH'][:500]}...")
+        return env
 
     def print_header(self, message):
         print(f"\n{'=' * 60}")
@@ -163,8 +259,11 @@ class ProjectBuilder:
         """Проверяет доступность MinGW"""
         try:
             self.log_debug("Проверка MinGW...")
+            # Используем очищенное окружение для проверки
+            env = self.get_clean_mingw_environment()
             result = subprocess.run(['x86_64-w64-mingw32-g++', '--version'],
-                                    capture_output=True, text=True, timeout=10)
+                                    capture_output=True, text=True, timeout=10,
+                                    env=env)
             self.log_debug(f"MinGW check stdout: {result.stdout[:100]}...")
             self.log_debug(f"MinGW check stderr: {result.stderr[:100]}...")
             return result.returncode == 0
@@ -220,9 +319,15 @@ class ProjectBuilder:
         return all_exist
 
     def build_with_mingw(self):
-        """Сборка через MinGW"""
+        """Сборка через MinGW с очищенным окружением"""
         self.print_header("СБОРКА ЧЕРЕЗ MINGW-W64")
         self.log_debug("Начало сборки через MinGW")
+        
+        # Проверяем conda окружение
+        self.check_conda_environment()
+        
+        # Получаем очищенное окружение для MinGW
+        env = self.get_clean_mingw_environment()
 
         source_dir = self.project_root / "src" / "cpp"
         logger_output = self.project_root / "src" / "cpp_logger" / "lib" / "logger.dll"
@@ -236,7 +341,7 @@ class ProjectBuilder:
         cmd_logger = [
             'x86_64-w64-mingw32-g++',
             '-shared', '-static', '-static-libgcc', '-static-libstdc++',
-            '-std=c++17', '-O2',
+            '-std=c++17', '-O3',  # Изменено с -O2 на -O3 по заданию
             '-I', str(source_dir),
             str(source_dir / "logger.cpp"),
             '-o', str(logger_output)
@@ -246,16 +351,21 @@ class ProjectBuilder:
 
         try:
             result = subprocess.run(cmd_logger, capture_output=True, text=True,
-                                    cwd=self.project_root, timeout=60)
-            self.log_debug(f"Logger compilation stdout: {result.stdout}")
-            self.log_debug(f"Logger compilation stderr: {result.stderr}")
+                                    cwd=self.project_root, timeout=60, env=env)
+            self.log_debug(f"Logger compilation stdout: {result.stdout[:500] if result.stdout else 'Пусто'}")
+            self.log_debug(f"Logger compilation stderr: {result.stderr[:500] if result.stderr else 'Пусто'}")
 
             if result.returncode == 0 and logger_output.exists():
                 file_size = logger_output.stat().st_size
                 self.print_success(f"logger.dll создан ({file_size} байт)")
                 self.log_debug(f"logger.dll успешно создан, размер: {file_size} байт")
             else:
-                self.print_error(f"Ошибка компиляции logger.dll: {result.stderr}")
+                error_msg = f"Ошибка компиляции logger.dll: returncode={result.returncode}"
+                if result.stdout:
+                    error_msg += f"\nstdout: {result.stdout[:500]}"
+                if result.stderr:
+                    error_msg += f"\nstderr: {result.stderr[:500]}"
+                self.print_error(error_msg)
                 self.logger.error(f"Ошибка компиляции logger.dll: {result.stderr}")
                 success = False
         except Exception as e:
@@ -270,7 +380,7 @@ class ProjectBuilder:
             cmd_calculate = [
                 'x86_64-w64-mingw32-g++',
                 '-shared', '-static', '-static-libgcc', '-static-libstdc++',
-                '-std=c++17', '-O2',
+                '-std=c++17', '-O3',  # Изменено с -O2 на -O3 по заданию
                 '-I', str(source_dir),
                 str(source_dir / "calculate.cpp"),
                 str(source_dir / "logger.cpp"),  # Добавляем logger.cpp как зависимость
@@ -281,16 +391,21 @@ class ProjectBuilder:
 
             try:
                 result = subprocess.run(cmd_calculate, capture_output=True, text=True,
-                                        cwd=self.project_root, timeout=60)
-                self.log_debug(f"Calculate compilation stdout: {result.stdout}")
-                self.log_debug(f"Calculate compilation stderr: {result.stderr}")
+                                        cwd=self.project_root, timeout=60, env=env)
+                self.log_debug(f"Calculate compilation stdout: {result.stdout[:500] if result.stdout else 'Пусто'}")
+                self.log_debug(f"Calculate compilation stderr: {result.stderr[:500] if result.stderr else 'Пусто'}")
 
                 if result.returncode == 0 and calculate_output.exists():
                     file_size = calculate_output.stat().st_size
                     self.print_success(f"calculate.dll создан ({file_size} байт)")
                     self.log_debug(f"calculate.dll успешно создан, размер: {file_size} байт")
                 else:
-                    self.print_error(f"Ошибка компиляции calculate.dll: {result.stderr}")
+                    error_msg = f"Ошибка компиляции calculate.dll: returncode={result.returncode}"
+                    if result.stdout:
+                        error_msg += f"\nstdout: {result.stdout[:500]}"
+                    if result.stderr:
+                        error_msg += f"\nstderr: {result.stderr[:500]}"
+                    self.print_error(error_msg)
                     self.logger.error(f"Ошибка компиляции calculate.dll: {result.stderr}")
                     success = False
             except Exception as e:
@@ -311,10 +426,11 @@ class ProjectBuilder:
 
         # Поиск MinGW
         possible_paths = [
-            Path("C:/msys64/mingw64/bin"),
             Path("C:/ProgramData/mingw64/mingw64/bin"),
+            Path("C:/msys64/mingw64/bin"),
             Path("C:/MinGW/bin"),
             Path("C:/mingw64/bin"),
+            Path("C:/Program Files/mingw-w64/bin"),
         ]
 
         mingw_bin = None
@@ -382,14 +498,23 @@ class ProjectBuilder:
             # Конфигурация
             self.print_info("Конфигурация CMake...")
             self.log_debug("Конфигурация CMake...")
-            cmd_configure = ['cmake', '-B', str(build_dir), '-S', str(self.project_root), '-DCMAKE_BUILD_TYPE=Release']
-
+            
+            # Используем генератор MinGW, если доступен
+            cmd_configure = ['cmake', '-B', str(build_dir), '-S', str(self.project_root)]
+            
+            # Пробуем использовать MinGW генератор
+            if self.compiler_status.get('MinGW', False):
+                cmd_configure.extend(['-G', 'MinGW Makefiles'])
+                self.print_info("Используем генератор MinGW Makefiles")
+            
+            cmd_configure.extend(['-DCMAKE_BUILD_TYPE=Release'])
+            
             self.log_debug(f"CMake configure command: {' '.join(cmd_configure)}")
 
             result = subprocess.run(cmd_configure, capture_output=True, text=True,
                                     cwd=self.project_root, timeout=120)
-            self.log_debug(f"CMake configure stdout: {result.stdout}")
-            self.log_debug(f"CMake configure stderr: {result.stderr}")
+            self.log_debug(f"CMake configure stdout: {result.stdout[:500] if result.stdout else 'Пусто'}")
+            self.log_debug(f"CMake configure stderr: {result.stderr[:500] if result.stderr else 'Пусто'}")
 
             if result.returncode != 0:
                 self.print_error(f"Ошибка конфигурации CMake: {result.stderr}")
@@ -405,8 +530,8 @@ class ProjectBuilder:
 
             result = subprocess.run(cmd_build, capture_output=True, text=True,
                                     cwd=self.project_root, timeout=180)
-            self.log_debug(f"CMake build stdout: {result.stdout}")
-            self.log_debug(f"CMake build stderr: {result.stderr}")
+            self.log_debug(f"CMake build stdout: {result.stdout[:500] if result.stdout else 'Пусто'}")
+            self.log_debug(f"CMake build stderr: {result.stderr[:500] if result.stderr else 'Пусто'}")
 
             if result.returncode != 0:
                 self.print_error(f"Ошибка сборки CMake: {result.stderr}")
@@ -493,7 +618,9 @@ class ProjectBuilder:
                 ("2 + 2", "4"),
                 ("10 - 5", "5"),
                 ("3 * 4", "12"),
-                ("8 / 2", "4")
+                ("8 / 2", "4"),
+                ("(2 + 3) * 4", "20"),  # Добавлен тест со скобками
+                ("2 + 3 * 4", "14"),    # Приоритет операций
             ]
 
             for expression, expected in test_cases:
@@ -529,6 +656,10 @@ class ProjectBuilder:
 
             logger = CppLogger("test_build.log")
             logger.info("Тест сборки прошел успешно!")
+            logger.debug("Отладочное сообщение")
+            logger.warning("Предупреждение")
+            logger.error("Ошибка (тестовая)")
+            
             self.print_success("Логгер работает корректно")
             self.log_debug("Логгер работает корректно")
             return True
@@ -570,7 +701,7 @@ class ProjectBuilder:
         build_success = False
 
         if compiler_status.get('MinGW', False):
-            self.print_info("Попытка сборки через MinGW (самый надежный способ)...")
+            self.print_info("Попытка сборки через MinGW")
             self.logger.info("Попытка сборки через MinGW")
             build_success = self.build_with_mingw()
 
@@ -588,6 +719,7 @@ class ProjectBuilder:
             self.print_info("2. Проверьте права доступа к файлам")
             self.print_info("3. Запустите скрипт от имени администратора")
             self.print_info("4. Проверьте, что все исходные файлы присутствуют")
+            self.print_info("5. Если используете conda, попробуйте деактивировать окружение")
             return False
 
         # Финальная проверка DLL

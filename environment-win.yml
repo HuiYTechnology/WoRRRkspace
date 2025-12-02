@@ -2,6 +2,7 @@ name: worrrkspace
 channels:
   - conda-forge
   - defaults
+
 dependencies:
   - python=3.10.12
   - numpy
@@ -14,7 +15,26 @@ dependencies:
   - polars
   - duckdb
   - pyqt=6
+  - postgresql
+  - pyarrow
+  - orjson
+  - mlflow
+
+  # build tools
+  - cmake
+  - ninja
+  - m2-make
+  - m2-patch
+
+  # MSVC discovery tools
+  - vswhere
+
+  # Windows runtime
+  - vc=14.2
+  - vs2015_runtime
+
   - pip
+
   - pip:
       - torch>=2.0.0
       - torchvision>=0.15.0
@@ -23,3 +43,7 @@ dependencies:
       - robyn>=0.14.0
       - psqlpy>=0.1.0
       - markdown
+      - plotly
+      - pyinstaller
+      - pywin32
+      - comtypes
