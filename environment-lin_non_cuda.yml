@@ -1,0 +1,56 @@
+name: worrrkspace
+channels:   
+  - conda-forge
+dependencies:
+  - python=3.10.12
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyter
+  - jupyterlab
+  - polars
+  - duckdb
+  - pyqt=6
+  - postgresql
+  - pyarrow
+  - orjson
+  - mlflow
+  
+  # Linux-specific tools
+  - cmake
+  - ninja
+  - make
+  - gxx_linux-64  # C++ compiler
+  - gcc_linux-64  # C compiler
+  - gfortran_linux-64
+  - binutils_linux-64
+  - libgcc-ng
+  - libstdcxx-ng
+  - libgfortran5
+  - libgfortran-ng
+  
+  # Linux system libs
+  - fontconfig
+  - freetype
+  - libxcb
+  - libxkbcommon
+  - xorg-libx11
+  - xorg-libxext
+  - xorg-libxrender
+  - xorg-libxi
+  
+  - pip
+  
+  - pip:
+      - torch==2.0.1+cpu --index-url https://download.pytorch.org/whl/cpu
+      - torchvision==0.15.2+cpu --index-url https://download.pytorch.org/whl/cpu
+      - torchaudio==2.0.2+cpu --index-url https://download.pytorch.org/whl/cpu
+      - transformers>=4.28.0
+      - robyn>=0.14.0
+      - psqlpy>=0.1.0
+      - markdown
+      - plotly
+      - pyinstaller
+      - patchelf  # Для исправления библиотек в Linux
