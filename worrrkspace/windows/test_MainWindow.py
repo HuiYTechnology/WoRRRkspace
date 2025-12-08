@@ -1,832 +1,981 @@
-"""WoRRRkspace MainWindow с PyTablerIcons и работающими виджетами"""
+"""WoRRRkspace MainWindow - Clean Version"""
 
 import sys
-import os
 import warnings
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Callable, Any
+from dataclasses import dataclass
 
-warnings.filterwarnings("ignore", category=DeprecationWarning, message=r".*sipPyTypeDict.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
-from PyQt6 import QtWidgets, uic, QtCore, QtGui
-from PyQt6.QtCore import Qt, pyqtSignal, QSettings, QPoint, QSize
+from PyQt6 import QtWidgets, uic
+from PyQt6.QtCore import Qt, pyqtSignal, QSettings, QPoint
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QComboBox, QToolButton, QTabWidget, QStatusBar,
-    QMenu, QPushButton, QTextEdit, QLineEdit, QSplitter,
-    QListWidget, QListWidgetItem, QDockWidget, QDialog
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QComboBox, QToolButton, QTabWidget, QStatusBar, QMenu,
+    QPushButton, QTextEdit, QDockWidget, QDialog, QMessageBox
 )
-from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtGui import QIcon, QAction, QPalette, QColor
 
 # =============================================================================
-# ПРОВЕРКА И ИМПОРТ PyTablerIcons
+# CONFIGURATION
 # =============================================================================
 
-try:
-    from pytablericons import TablerIcons, OutlineIcon, FilledIcon
-    PYTABLERICONS_AVAILABLE = True
-    print("✅ PyTablerIcons imported successfully!")
-except ImportError as e:
-    print(f"❌ PyTablerIcons import error: {e}")
-    PYTABLERICONS_AVAILABLE = False
+@dataclass
+class AppConfig:
+    ORG_NAME: str = "worrrkspace_company"
+    APP_NAME: str = "worrrkspace_app"
+    WINDOW_TITLE: str = "WoRRRkspace"
+    MIN_SIZE: tuple = (1000, 700)
+    DEFAULT_SIZE: tuple = (1400, 900)
+    TOPBAR_HEIGHT: int = 56
+    ICON_SIZE: int = 24
+    TOOL_ICON_SIZE: int = 20
+
+@dataclass
+class ColorScheme:
+    """WoRRRkspace color palette"""
+    BG_PRIMARY: str = "#141414"
+    BG_SECONDARY: str = "#0f0f0f"
+    ACCENT_BRIGHT: str = "#863eff"
+    ACCENT_MEDIUM: str = "#5b2aad"
+    ACCENT_DARK: str = "#4b238f"
+    
+    TEXT_LIGHT: str = "#ffffff"
+    TEXT_MUTED: str = "#a0a0a0"
+    BORDER_DARK: str = "#2a2a2a"
+    BORDER_LIGHT: str = "#3a3a3a"
+
+CONFIG = AppConfig()
+COLORS = ColorScheme()
 
 # =============================================================================
-# ICON MANAGER ДЛЯ PyTablerIcons
+# PATH SETUP
+# =============================================================================
+
+def setup_paths():
+    current_dir = Path(__file__).parent
+    project_root = current_dir.parent.parent
+    worrrkspace_path = project_root / "worrrkspace"
+    
+    paths = [
+        worrrkspace_path / "ui" / "widgets",
+        worrrkspace_path / "ui" / "panels", 
+        worrrkspace_path / "src" / "python",
+    ]
+    
+    for p in paths:
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+
+setup_paths()
+
+# =============================================================================
+# LAZY IMPORTS
+# =============================================================================
+
+class LazyImporter:
+    _cache: Dict[str, Any] = {}
+    _errors: Dict[str, str] = {}
+    
+    @classmethod
+    def get(cls, module_name: str, class_name: str, fallback_factory: Callable = None):
+        cache_key = f"{module_name}.{class_name}"
+        
+        if cache_key in cls._cache:
+            return cls._cache[cache_key]
+        
+        try:
+            module = __import__(module_name, fromlist=[class_name])
+            klass = getattr(module, class_name)
+            cls._cache[cache_key] = klass
+            print(f"[OK] {class_name}")
+            return klass
+        except Exception as e:
+            cls._errors[cache_key] = str(e)
+            print(f"[WARN] {class_name}: {e}")
+            
+            if fallback_factory:
+                fallback = fallback_factory()
+                cls._cache[cache_key] = fallback
+                return fallback
+            return None
+    
+    @classmethod
+    def get_errors(cls) -> Dict[str, str]:
+        return cls._errors.copy()
+
+# =============================================================================
+# ICON MANAGER
 # =============================================================================
 
 class IconManager:
-    """Менеджер иконок с использованием PyTablerIcons"""
+    _available: bool = False
+    _tabler: Any = None
+    _outline: Any = None
+    _cache: Dict[tuple, QIcon] = {}
     
-    # Кэш для иконок: (icon_name, size, color) -> QIcon
-    _icon_cache: Dict[Tuple[str, int, str], QIcon] = {}
-    
-    # Маппинг иконок для нашего приложения
-    ICON_MAP = {
-        # Основные иконки
+    ICONS = {
         "theme_light": "SUN",
         "theme_dark": "MOON",
         "profile": "USER_CIRCLE",
         "menu": "MENU_2",
-        "workspace": "LAYOUT_DASHBOARD",
-        
-        # Иконки для ToolsPanel
         "table": "TABLE",
         "note": "NOTE",
         "graph": "CHART_ARCS_3",
+        "chart": "CHART_ARCS_3",
         "task": "CHECKLIST",
+        "diagram": "HIERARCHY_2",
         "save": "DEVICE_FLOPPY",
         "settings": "SETTINGS",
-        
-        # Иконки для панелей
-        "solution_explorer": "FOLDERS",
+        "folders": "FOLDERS",
         "tools": "TOOLS",
         "chat": "MESSAGE_CHATBOT",
         "logs": "TERMINAL_2",
-        
-        # Общие иконки
         "add": "PLUS",
         "delete": "TRASH",
         "edit": "EDIT",
         "close": "X",
-        "refresh": "REFRESH"
     }
     
     @classmethod
-    def get_icon(cls, icon_key: str, size: int = 24, color: str = "#000000") -> QIcon:
-        """
-        Получить иконку из PyTablerIcons
-        
-        Args:
-            icon_key: Ключ иконки из ICON_MAP
-            size: Размер иконки в пикселях
-            color: Цвет в формате HEX (#RRGGBB)
-        
-        Returns:
-            QIcon объект или пустая иконка при ошибке
-        """
-        if not PYTABLERICONS_AVAILABLE:
+    def init(cls):
+        try:
+            from pytablericons import TablerIcons, OutlineIcon
+            cls._tabler = TablerIcons
+            cls._outline = OutlineIcon
+            cls._available = True
+            print("[OK] PyTablerIcons")
+        except ImportError as e:
+            print(f"[WARN] PyTablerIcons: {e}")
+    
+    @classmethod
+    def get(cls, key: str, size: int = 24, color: str = "#ffffff") -> QIcon:
+        if not cls._available:
             return QIcon()
         
-        cache_key = (icon_key, size, color)
-        if cache_key in cls._icon_cache:
-            return cls._icon_cache[cache_key]
+        cache_key = (key, size, color)
+        if cache_key in cls._cache:
+            return cls._cache[cache_key]
+        
+        icon_name = cls.ICONS.get(key)
+        if not icon_name:
+            return QIcon()
         
         try:
-            # Получаем имя иконки из маппинга
-            icon_name = cls.ICON_MAP.get(icon_key)
-            if not icon_name:
-                print(f"⚠️ Icon key '{icon_key}' not found in ICON_MAP")
-                return QIcon()
-            
-            # Пытаемся загрузить иконку
-            try:
-                icon_obj = TablerIcons.load(
-                    getattr(OutlineIcon, icon_name),
-                    size=size,
-                    color=color
-                )
-                qicon = QIcon(icon_obj.toqpixmap())
-                cls._icon_cache[cache_key] = qicon
+            icon_enum = getattr(cls._outline, icon_name, None)
+            if icon_enum:
+                pixmap = cls._tabler.load(icon_enum, size=size, color=color).toqpixmap()
+                qicon = QIcon(pixmap)
+                cls._cache[cache_key] = qicon
                 return qicon
-            except AttributeError:
-                print(f"⚠️ Icon '{icon_name}' not found in PyTablerIcons")
-                return QIcon()
-                
-        except Exception as e:
-            print(f"❌ Error loading icon {icon_key}: {e}")
-            return QIcon()
-    
-    @classmethod
-    def get_theme_icon(cls, theme: str = "light", size: int = 24) -> QIcon:
-        """Получить иконку для переключения темы"""
-        icon_key = "theme_dark" if theme == "light" else "theme_light"
-        color = "#FFFFFF" if theme == "dark" else "#000000"
-        return cls.get_icon(icon_key, size, color)
-    
-    @classmethod
-    def get_tools_icon(cls, tool_type: str, size: int = 20, theme: str = "light") -> QIcon:
-        """Получить иконку для инструментов"""
-        color = "#FFFFFF" if theme == "dark" else "#000000"
-        return cls.get_icon(tool_type, size, color)
-    
-    @classmethod
-    def clear_cache(cls):
-        """Очистить кэш иконок"""
-        cls._icon_cache.clear()
-
-# =============================================================================
-# ИМПОРТ ВИДЖЕТОВ
-# =============================================================================
-
-# Добавляем пути импорта
-current_dir = Path(__file__).parent
-project_root = current_dir.parent.parent
-worrrkspace_path = project_root / "worrrkspace"
-
-sys.path.insert(0, str(worrrkspace_path / "ui" / "widgets"))
-sys.path.insert(0, str(worrrkspace_path / "ui" / "panels"))
-sys.path.insert(0, str(worrrkspace_path / "src" / "python"))
-
-try:
-    from theme_util import SystemThemeDetector
-    from theme_manager import setup_app_theme, ThemeManager
-    print("✅ Импортированы theme модули")
-except ImportError:
-    print("⚠️ Использую fallback для theme модулей")
-    
-    class SystemThemeDetector:
-        def get_system_theme(self):
-            return "light"
-    
-    class ThemeManager:
-        def __init__(self, organization, application):
-            self.current_theme = "light"
+        except Exception:
+            pass
         
-        def toggle_theme(self):
-            self.current_theme = "dark" if self.current_theme == "light" else "light"
-            return self.current_theme
+        return QIcon()
     
-    def setup_app_theme(app, theme="light"):
-        app.setStyle("Fusion")
+    @classmethod
+    def themed(cls, theme: str, key: str, size: int = 24) -> QIcon:
+        color = COLORS.TEXT_LIGHT if theme == "dark" else "#000000"
+        return cls.get(key, size, color)
+    
+    @classmethod
+    def accent(cls, key: str, size: int = 24) -> QIcon:
+        return cls.get(key, size, COLORS.ACCENT_BRIGHT)
 
-# Импорт виджетов с fallback
-try:
-    from base_widgets import ProfileDialog
-    print("✅ Импортирован ProfileDialog")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта ProfileDialog: {e}")
+IconManager.init()
+
+# =============================================================================
+# STYLESHEETS
+# =============================================================================
+
+class StyleSheets:
     
-    class ProfileDialog(QDialog):
+    @staticmethod
+    def dark_theme() -> str:
+        return f"""
+            QMainWindow {{
+                background-color: {COLORS.BG_PRIMARY};
+            }}
+            
+            QWidget {{
+                background-color: {COLORS.BG_PRIMARY};
+                color: {COLORS.TEXT_LIGHT};
+                font-family: 'Segoe UI', 'SF Pro Display', sans-serif;
+            }}
+            
+            QDockWidget {{
+                background-color: {COLORS.BG_SECONDARY};
+                border: 1px solid {COLORS.BORDER_DARK};
+                titlebar-close-icon: none;
+            }}
+            
+            QDockWidget::title {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                padding: 8px;
+                border-bottom: 1px solid {COLORS.BORDER_DARK};
+            }}
+            
+            QTabWidget::pane {{
+                background-color: {COLORS.BG_PRIMARY};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 4px;
+            }}
+            
+            QTabBar::tab {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_MUTED};
+                padding: 8px 16px;
+                margin-right: 2px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }}
+            
+            QTabBar::tab:selected {{
+                background-color: {COLORS.ACCENT_DARK};
+                color: {COLORS.TEXT_LIGHT};
+            }}
+            
+            QTabBar::tab:hover:!selected {{
+                background-color: {COLORS.BORDER_LIGHT};
+            }}
+            
+            QPushButton {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 500;
+            }}
+            
+            QPushButton:hover {{
+                background-color: {COLORS.ACCENT_DARK};
+                border-color: {COLORS.ACCENT_MEDIUM};
+            }}
+            
+            QPushButton:pressed {{
+                background-color: {COLORS.ACCENT_MEDIUM};
+            }}
+            
+            QToolButton {{
+                background-color: transparent;
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 6px;
+                padding: 6px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {COLORS.ACCENT_DARK};
+                border-color: {COLORS.ACCENT_MEDIUM};
+            }}
+            
+            QComboBox {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 6px;
+                padding: 8px 12px;
+                min-width: 200px;
+            }}
+            
+            QComboBox:hover {{
+                border-color: {COLORS.ACCENT_MEDIUM};
+            }}
+            
+            QComboBox::drop-down {{
+                border: none;
+                width: 24px;
+            }}
+            
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                selection-background-color: {COLORS.ACCENT_DARK};
+            }}
+            
+            QTextEdit, QPlainTextEdit {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 4px;
+                padding: 8px;
+            }}
+            
+            QLineEdit {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 4px;
+                padding: 8px;
+            }}
+            
+            QLineEdit:focus, QTextEdit:focus {{
+                border-color: {COLORS.ACCENT_BRIGHT};
+            }}
+            
+            QStatusBar {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_MUTED};
+                border-top: 1px solid {COLORS.BORDER_DARK};
+            }}
+            
+            QMenu {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            
+            QMenu::item {{
+                padding: 8px 24px;
+                border-radius: 4px;
+            }}
+            
+            QMenu::item:selected {{
+                background-color: {COLORS.ACCENT_DARK};
+            }}
+            
+            QScrollBar:vertical {{
+                background-color: {COLORS.BG_PRIMARY};
+                width: 10px;
+                border-radius: 5px;
+            }}
+            
+            QScrollBar::handle:vertical {{
+                background-color: {COLORS.BORDER_LIGHT};
+                border-radius: 5px;
+                min-height: 30px;
+            }}
+            
+            QScrollBar::handle:vertical:hover {{
+                background-color: {COLORS.ACCENT_MEDIUM};
+            }}
+            
+            QScrollBar:horizontal {{
+                background-color: {COLORS.BG_PRIMARY};
+                height: 10px;
+                border-radius: 5px;
+            }}
+            
+            QScrollBar::handle:horizontal {{
+                background-color: {COLORS.BORDER_LIGHT};
+                border-radius: 5px;
+                min-width: 30px;
+            }}
+            
+            QScrollBar::add-line, QScrollBar::sub-line {{
+                width: 0px;
+                height: 0px;
+            }}
+            
+            QTableWidget {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                gridline-color: {COLORS.BORDER_DARK};
+                border: 1px solid {COLORS.BORDER_DARK};
+            }}
+            
+            QTableWidget::item:selected {{
+                background-color: {COLORS.ACCENT_DARK};
+            }}
+            
+            QHeaderView::section {{
+                background-color: {COLORS.BG_PRIMARY};
+                color: {COLORS.TEXT_LIGHT};
+                padding: 8px;
+                border: none;
+                border-bottom: 1px solid {COLORS.BORDER_DARK};
+            }}
+            
+            QTreeView, QListView {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 4px;
+            }}
+            
+            QTreeView::item:selected, QListView::item:selected {{
+                background-color: {COLORS.ACCENT_DARK};
+            }}
+            
+            QTreeView::item:hover, QListView::item:hover {{
+                background-color: {COLORS.BORDER_LIGHT};
+            }}
+            
+            QSplitter::handle {{
+                background-color: {COLORS.BORDER_DARK};
+            }}
+            
+            QSplitter::handle:hover {{
+                background-color: {COLORS.ACCENT_MEDIUM};
+            }}
+        """
+    
+    @staticmethod
+    def light_theme() -> str:
+        return """
+            QMainWindow {
+                background-color: #f5f5f5;
+            }
+            
+            QWidget {
+                background-color: #ffffff;
+                color: #1a1a1a;
+            }
+            
+            QPushButton {
+                background-color: #ffffff;
+                border: 1px solid #d0d0d0;
+                border-radius: 6px;
+                padding: 8px 16px;
+            }
+            
+            QPushButton:hover {
+                background-color: #f0f0f0;
+                border-color: #863eff;
+            }
+        """
+
+# =============================================================================
+# FALLBACK FACTORIES
+# =============================================================================
+
+def create_fallback_widget(title: str, content: str = "") -> type:
+    class FallbackWidget(QWidget):
         def __init__(self, parent=None):
             super().__init__(parent)
-            self.setWindowTitle("Профиль")
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Профиль пользователя"))
-            btn = QPushButton("Закрыть")
-            btn.clicked.connect(self.accept)
-            layout.addWidget(btn)
-            self.setLayout(layout)
+            layout = QVBoxLayout(self)
+            layout.addWidget(QLabel(title))
+            if content:
+                te = QTextEdit()
+                te.setPlainText(content)
+                layout.addWidget(te)
+    return FallbackWidget
 
-try:
-    from markdown_editor import MarkdownNoteTab
-    print("✅ Импортирован MarkdownNoteTab")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта MarkdownNoteTab: {e}")
-    
-    class MarkdownNoteTab(QWidget):
+def create_fallback_dock(title: str) -> type:
+    class FallbackDock(QDockWidget):
         def __init__(self, parent=None):
-            super().__init__(parent)
-            layout = QVBoxLayout()
-            self.text_edit = QTextEdit()
-            self.text_edit.setPlaceholderText("Введите Markdown текст...")
-            layout.addWidget(self.text_edit)
-            self.setLayout(layout)
+            super().__init__(title, parent)
+            w = QWidget()
+            layout = QVBoxLayout(w)
+            layout.addWidget(QLabel(title))
+            self.setWidget(w)
+    return FallbackDock
 
-try:
-    from table_editor import TableEditorTab
-    print("✅ Импортирован TableEditorTab")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта TableEditorTab: {e}")
-    
-    class TableEditorTab(QWidget):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            from PyQt6.QtWidgets import QTableWidget
-            layout = QVBoxLayout()
-            self.table = QTableWidget(5, 5)
-            layout.addWidget(self.table)
-            self.setLayout(layout)
-
-try:
-    from graph_editor import GraphTab
-    print("✅ Импортирован GraphTab")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта GraphTab: {e}")
-    
-    class GraphTab(QWidget):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Редактор графов"))
-            layout.addWidget(QLabel("(Используйте оригинальный graph_editor.py для полной функциональности)"))
-            self.setLayout(layout)
-
-try:
-    from task_editor import TaskTab
-    print("✅ Импортирован TaskTab")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта TaskTab: {e}")
-    
-    class TaskTab(QWidget):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Редактор задач"))
-            self.setLayout(layout)
-
-# Импорт панелей с fallback
-try:
-    from solution_explorer import SolutionExplorer
-    print("✅ Импортирован SolutionExplorer")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта SolutionExplorer: {e}")
-    
-    class SolutionExplorer(QDockWidget):
-        def __init__(self, parent=None):
-            super().__init__("Solution Explorer", parent)
-            widget = QWidget()
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Solution Explorer"))
-            widget.setLayout(layout)
-            self.setWidget(widget)
-
-try:
-    from tools_panel import ToolsPanel
-    print("✅ Импортирован ToolsPanel")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта ToolsPanel: {e}")
-    
-    class ToolsPanel(QDockWidget):
+def create_fallback_tools_panel() -> type:
+    class FallbackToolsPanel(QDockWidget):
         def __init__(self, parent=None):
             super().__init__("Tools", parent)
             widget = QWidget()
-            layout = QVBoxLayout()
+            layout = QVBoxLayout(widget)
             
-            # Создаем кнопки как в работающей версии
-            self.btn_table = QPushButton()
-            self.btn_note = QPushButton()
-            self.btn_graph = QPushButton()
-            self.btn_task = QPushButton()
+            self.btn_table = QPushButton("Таблица")
+            self.btn_note = QPushButton("Заметка")  
+            self.btn_chart = QPushButton("Граф")
+            self.btn_task = QPushButton("Задача")
+            self.btn_diagramm = QPushButton("Диаграмма")
             
-            # Устанавливаем текст
-            self.btn_table.setText("Таблица")
-            self.btn_note.setText("Заметка")
-            self.btn_graph.setText("Граф")
-            self.btn_task.setText("Задача")
-            
-            # Настраиваем размер
-            for btn in [self.btn_table, self.btn_note, self.btn_graph, self.btn_task]:
+            for btn in [self.btn_table, self.btn_note, self.btn_chart, 
+                        self.btn_task, self.btn_diagramm]:
                 btn.setMinimumHeight(40)
-                btn.setStyleSheet("""
-                    QPushButton {
-                        text-align: left;
-                        padding: 8px;
-                        font-size: 12px;
-                    }
-                    QPushButton:hover {
-                        background-color: #e0e0e0;
-                    }
-                """)
+                layout.addWidget(btn)
             
-            layout.addWidget(self.btn_table)
-            layout.addWidget(self.btn_note)
-            layout.addWidget(self.btn_graph)
-            layout.addWidget(self.btn_task)
             layout.addStretch()
-            
-            widget.setLayout(layout)
             self.setWidget(widget)
-
-try:
-    from chat_panel import ChatPanel
-    print("✅ Импортирован ChatPanel")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта ChatPanel: {e}")
-    
-    class ChatPanel(QDockWidget):
-        def __init__(self, parent=None):
-            super().__init__("Chat", parent)
-            widget = QWidget()
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Чат"))
-            widget.setLayout(layout)
-            self.setWidget(widget)
-
-try:
-    from logs_panel import LogsPanel
-    print("✅ Импортирован LogsPanel")
-except ImportError as e:
-    print(f"⚠️ Ошибка импорта LogsPanel: {e}")
-    
-    class LogsPanel(QDockWidget):
-        def __init__(self, parent=None):
-            super().__init__("Logs", parent)
-            widget = QWidget()
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Логи"))
-            widget.setLayout(layout)
-            self.setWidget(widget)
+    return FallbackToolsPanel
 
 # =============================================================================
-# TOP BAR С PYTABLERICONS
+# IMPORTS
+# =============================================================================
+
+# Theme
+ThemeManager = LazyImporter.get("theme_manager", "ThemeManager")
+if not ThemeManager:
+    class ThemeManager:
+        def __init__(self, **kwargs):
+            self.current_theme = "dark"
+        def toggle_theme(self):
+            self.current_theme = "light" if self.current_theme == "dark" else "dark"
+            return self.current_theme
+
+setup_app_theme_func = LazyImporter.get("theme_manager", "setup_app_theme")
+
+# Widgets
+MarkdownNoteTab = LazyImporter.get(
+    "markdown_editor", "MarkdownNoteTab",
+    lambda: create_fallback_widget("Markdown Editor", "Enter text...")
+)
+
+TableEditorTab = LazyImporter.get(
+    "table_editor", "TableEditorTab",
+    lambda: create_fallback_widget("Table Editor")
+)
+
+GraphTab = LazyImporter.get(
+    "graph_editor", "GraphTab",
+    lambda: create_fallback_widget("Graph Editor", "Graph visualization")
+)
+
+TaskTab = LazyImporter.get(
+    "task_editor", "TaskTab", 
+    lambda: create_fallback_widget("Task Editor")
+)
+
+DiagramTab = LazyImporter.get(
+    "diagram_editor", "DiagramTab",
+    lambda: create_fallback_widget("Diagram Editor", "Diagram visualization")
+)
+
+# Dialogs
+ProfileDialog = LazyImporter.get("base_widgets", "ProfileDialog")
+if not ProfileDialog:
+    class ProfileDialog(QDialog):
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self.setWindowTitle("Profile")
+            self.setStyleSheet(StyleSheets.dark_theme())
+            layout = QVBoxLayout(self)
+            layout.addWidget(QLabel("User Profile"))
+            btn = QPushButton("Close")
+            btn.clicked.connect(self.accept)
+            layout.addWidget(btn)
+
+# Panels
+SolutionExplorer = LazyImporter.get(
+    "solution_explorer", "SolutionExplorer",
+    lambda: create_fallback_dock("Solution Explorer")
+)
+
+ToolsPanel = LazyImporter.get(
+    "tools_panel", "ToolsPanel",
+    create_fallback_tools_panel
+)
+
+ChatPanel = LazyImporter.get(
+    "chat_panel", "ChatPanel",
+    lambda: create_fallback_dock("Chat")
+)
+
+LogsPanel = LazyImporter.get(
+    "logs_panel", "LogsPanel", 
+    lambda: create_fallback_dock("Logs")
+)
+
+# =============================================================================
+# TOP BAR
 # =============================================================================
 
 class TopBar(QWidget):
     workspace_changed = pyqtSignal(str)
     profile_requested = pyqtSignal()
     theme_toggle_requested = pyqtSignal()
+    
+    WORKSPACES = ["Default", "Development", "Analytics", "Custom"]
 
-    def __init__(self, parent=None, theme="light"):
+    def __init__(self, parent=None, theme: str = "dark"):
         super().__init__(parent)
         self._theme = theme
-        self.setFixedHeight(56)
-        self.setup_ui()
-        self.update_icons()
+        self.setFixedHeight(CONFIG.TOPBAR_HEIGHT)
+        self._setup_ui()
+        self._update_icons()
+        self._apply_style()
 
-    def setup_ui(self):
+    def _setup_ui(self):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 6, 16, 6)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 8, 16, 8)
+        layout.setSpacing(12)
 
-        # Кнопка темы с иконкой PyTablerIcons
-        self.theme_button = QToolButton()
-        self.theme_button.setToolTip("Переключить тему")
-        self.theme_button.setAutoRaise(True)
-        self.theme_button.clicked.connect(self.theme_toggle_requested.emit)
-        self.theme_button.setFixedSize(40, 40)
-        self.theme_button.setStyleSheet("""
-            QToolButton {
-                border: 1px solid #ccc;
-                border-radius: 6px;
-            }
-            QToolButton:hover {
-                background-color: #f0f0f0;
-            }
-        """)
-        layout.addWidget(self.theme_button)
+        self.theme_btn = self._create_button("Toggle theme")
+        self.theme_btn.clicked.connect(self.theme_toggle_requested.emit)
+        layout.addWidget(self.theme_btn)
 
         layout.addStretch()
 
-        # Выбор workspace
         self.workspace_combo = QComboBox()
-        self.workspace_combo.setMinimumWidth(260)
-        self.workspace_combo.addItems(["По умолчанию", "Разработка", "Аналитика", "Пользовательское"])
-        self.workspace_combo.setToolTip("Выберите рабочее пространство")
-        
-        center_widget = QWidget()
-        center_layout = QHBoxLayout(center_widget)
-        center_layout.setContentsMargins(0, 0, 0, 0)
-        center_layout.addWidget(self.workspace_combo)
-        center_layout.addStretch()
-        
-        layout.addWidget(center_widget)
+        self.workspace_combo.addItems(self.WORKSPACES)
+        self.workspace_combo.currentTextChanged.connect(self.workspace_changed.emit)
+        layout.addWidget(self.workspace_combo)
+
         layout.addStretch()
 
-        # Кнопки профиля и меню панелей с PyTablerIcons
-        self.profile_button = QToolButton()
-        self.profile_button.setToolTip("Открыть профиль")
-        self.profile_button.setAutoRaise(True)
-        self.profile_button.setFixedSize(40, 40)
-        self.profile_button.setStyleSheet("""
-            QToolButton {
-                border: 1px solid #ccc;
-                border-radius: 6px;
-            }
-            QToolButton:hover {
-                background-color: #f0f0f0;
-            }
-        """)
+        self.profile_btn = self._create_button("Profile")
+        self.profile_btn.clicked.connect(self.profile_requested.emit)
+        layout.addWidget(self.profile_btn)
 
-        self.panel_menu_button = QToolButton()
-        self.panel_menu_button.setToolTip("Показать/скрыть панели")
-        self.panel_menu_button.setAutoRaise(True)
-        self.panel_menu_button.setFixedSize(40, 40)
-        self.panel_menu_button.setStyleSheet("""
-            QToolButton {
-                border: 1px solid #ccc;
-                border-radius: 6px;
-            }
-            QToolButton:hover {
-                background-color: #f0f0f0;
-            }
-        """)
-
+        self.panels_btn = self._create_button("Panels")
         self.panel_menu = QMenu(self)
+        self.panels_btn.clicked.connect(self._show_panel_menu)
+        layout.addWidget(self.panels_btn)
 
-        def _show_panel_menu():
-            if self.panel_menu_button:
-                pos = self.panel_menu_button.mapToGlobal(QPoint(0, self.panel_menu_button.height()))
-                if self.panel_menu.actions():
-                    self.panel_menu.exec(pos)
+    def _create_button(self, tooltip: str) -> QToolButton:
+        btn = QToolButton()
+        btn.setToolTip(tooltip)
+        btn.setAutoRaise(True)
+        btn.setFixedSize(40, 40)
+        return btn
 
-        self.panel_menu_button.clicked.connect(_show_panel_menu)
+    def _show_panel_menu(self):
+        if self.panel_menu.actions():
+            pos = self.panels_btn.mapToGlobal(QPoint(0, self.panels_btn.height()))
+            self.panel_menu.exec(pos)
 
-        layout.addWidget(self.profile_button)
-        layout.addWidget(self.panel_menu_button)
+    def _update_icons(self):
+        color = COLORS.ACCENT_BRIGHT
+        icon_key = "theme_dark" if self._theme == "light" else "theme_light"
+        self.theme_btn.setIcon(IconManager.get(icon_key, 24, color))
+        self.profile_btn.setIcon(IconManager.get("profile", 24, color))
+        self.panels_btn.setIcon(IconManager.get("menu", 24, color))
 
-        self.workspace_combo.currentTextChanged.connect(self.workspace_changed.emit)
+    def _apply_style(self):
+        self.setStyleSheet(f"""
+            TopBar {{
+                background-color: {COLORS.BG_SECONDARY};
+                border-bottom: 1px solid {COLORS.BORDER_DARK};
+            }}
+            
+            QToolButton {{
+                background-color: transparent;
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 8px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {COLORS.ACCENT_DARK};
+                border-color: {COLORS.ACCENT_MEDIUM};
+            }}
+            
+            QComboBox {{
+                background-color: {COLORS.BG_PRIMARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                border-radius: 8px;
+                padding: 8px 16px;
+                min-width: 200px;
+            }}
+            
+            QComboBox:hover {{
+                border-color: {COLORS.ACCENT_BRIGHT};
+            }}
+            
+            QComboBox::drop-down {{
+                border: none;
+                width: 24px;
+            }}
+            
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS.BG_SECONDARY};
+                color: {COLORS.TEXT_LIGHT};
+                border: 1px solid {COLORS.BORDER_DARK};
+                selection-background-color: {COLORS.ACCENT_DARK};
+            }}
+        """)
 
-    def update_icons(self):
-        """Обновить иконки в соответствии с текущей темой"""
-        # Цвет иконок в зависимости от темы
-        icon_color = "#FFFFFF" if self._theme == "dark" else "#000000"
-        
-        # Иконка темы (свет/луна)
-        theme_icon = IconManager.get_theme_icon(self._theme, 24)
-        if not theme_icon.isNull():
-            self.theme_button.setIcon(theme_icon)
-        
-        # Иконка профиля
-        profile_icon = IconManager.get_icon("profile", 24, icon_color)
-        if not profile_icon.isNull():
-            self.profile_button.setIcon(profile_icon)
-        
-        # Иконка меню
-        menu_icon = IconManager.get_icon("menu", 24, icon_color)
-        if not menu_icon.isNull():
-            self.panel_menu_button.setIcon(menu_icon)
-
-    def update_theme(self, theme: str):
-        """Обновить тему и иконки"""
+    def set_theme(self, theme: str):
         self._theme = theme
-        self.update_icons()
-        
-        # Обновляем стиль кнопок для темной темы
-        if theme == "dark":
-            button_style = """
-                QToolButton {
-                    border: 1px solid #555;
-                    border-radius: 6px;
-                }
-                QToolButton:hover {
-                    background-color: #444;
-                }
-            """
-        else:
-            button_style = """
-                QToolButton {
-                    border: 1px solid #ccc;
-                    border-radius: 6px;
-                }
-                QToolButton:hover {
-                    background-color: #f0f0f0;
-                }
-            """
-        
-        for btn in [self.theme_button, self.profile_button, self.panel_menu_button]:
-            btn.setStyleSheet(button_style)
+        self._update_icons()
 
-    def set_panels_menu(self, actions):
-        """Установить меню для панелей"""
+    def set_panels_menu(self, actions: list):
         self.panel_menu.clear()
         for act in actions:
             self.panel_menu.addAction(act)
 
 # =============================================================================
-# ГЛАВНОЕ ОКНО
+# TAB FACTORY
+# =============================================================================
+
+class TabFactory:
+    TABS = {
+        "Note": ("Note", MarkdownNoteTab),
+        "Table": ("Table", TableEditorTab),
+        "Graph": ("Graph", GraphTab),
+        "Task": ("Task", TaskTab),
+        "Diagram": ("Diagram", DiagramTab),
+    }
+    
+    @classmethod
+    def create(cls, tab_type: str, parent=None) -> tuple:
+        if tab_type not in cls.TABS:
+            return None, f"Unknown type: {tab_type}"
+        
+        title, widget_class = cls.TABS[tab_type]
+        
+        if widget_class is None:
+            return None, f"Class {tab_type} not loaded"
+        
+        try:
+            widget = widget_class(parent)
+            print(f"[OK] Created: {tab_type}")
+            return widget, title
+        except Exception as e:
+            error_msg = f"Error creating {tab_type}: {e}"
+            print(f"[ERROR] {error_msg}")
+            
+            fallback = QWidget(parent)
+            layout = QVBoxLayout(fallback)
+            layout.addWidget(QLabel(error_msg))
+            
+            errors = LazyImporter.get_errors()
+            if errors:
+                layout.addWidget(QLabel("Import errors:"))
+                for key, err in errors.items():
+                    layout.addWidget(QLabel(f"  - {key}: {err}"))
+            
+            return fallback, f"Error: {tab_type}"
+
+# =============================================================================
+# MAIN WINDOW
 # =============================================================================
 
 class MainWindow(QMainWindow):
-    WORKSPACE_SETTINGS_KEY = "app/worrrkspace"
 
     def __init__(self):
         super().__init__()
-        self.settings = QSettings("worrrkspace_company", "worrrkspace_app")
-        self.theme_manager = ThemeManager(organization="worrrkspace_company", application="worrrkspace_app")
-        self.current_theme = self.theme_manager.current_theme
-        self.dock_widgets = {}
-        self._panel_actions = {}
+        self.settings = QSettings(CONFIG.ORG_NAME, CONFIG.APP_NAME)
+        self.theme_manager = ThemeManager(
+            organization=CONFIG.ORG_NAME, 
+            application=CONFIG.APP_NAME
+        )
+        self.current_theme = getattr(self.theme_manager, 'current_theme', 'dark')
+        self.dock_widgets: Dict[str, QDockWidget] = {}
         
-        self._initialize_window()
+        self._init_window()
 
-    def _initialize_window(self):
-        self.setWindowTitle("WoRRRkspace")
-        self.setMinimumSize(1000, 700)
-        self.resize(1400, 900)
-        self._center_on_screen()
+    def _init_window(self):
+        self.setWindowTitle(CONFIG.WINDOW_TITLE)
+        self.setMinimumSize(*CONFIG.MIN_SIZE)
+        self.resize(*CONFIG.DEFAULT_SIZE)
+        self._center_window()
         
-        self._load_ui()
-        self._setup_ui()
-        self.apply_theme()
+        self._setup_central_widget()
+        self._setup_top_bar()
+        self._setup_panels()
         self._setup_connections()
+        self._apply_theme()
         
-        print("🚀 WoRRRkspace успешно инициализирован!")
+        self._log_status()
 
-    def _center_on_screen(self):
-        screen = self.screen()
-        if screen:
+    def _center_window(self):
+        if screen := self.screen():
             geom = screen.geometry()
             self.move(geom.center() - self.rect().center())
 
-    def _load_ui(self):
+    def _setup_central_widget(self):
         ui_file = Path(__file__).parent / "MainWindow.ui"
-        
         if ui_file.exists():
             try:
                 uic.loadUi(ui_file, self)
-                print("✅ Загружен UI из MainWindow.ui")
+                print("[OK] Loaded MainWindow.ui")
+                return
             except Exception as e:
-                print(f"⚠️ Ошибка загрузки UI: {e}")
-                self._setup_fallback_ui()
-        else:
-            self._setup_fallback_ui()
-
-    def _setup_fallback_ui(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+                print(f"[WARN] UI file: {e}")
+        
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         
         self.main_tab_widget = QTabWidget()
         self.main_tab_widget.setTabsClosable(True)
+        self.main_tab_widget.setDocumentMode(True)
         layout.addWidget(self.main_tab_widget)
         
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
+        self.setStatusBar(QStatusBar())
 
-    def _setup_ui(self):
-        # Создаем верхнюю панель
+    def _setup_top_bar(self):
         self.top_bar = TopBar(theme=self.current_theme)
         self.setMenuWidget(self.top_bar)
         
-        # Подключаем сигналы
-        self.top_bar.profile_button.clicked.connect(self.open_profile)
-        
-        # Создаем панели
-        self._create_panels()
-        
-        # Создаем статус бар если его нет
-        if not hasattr(self, "status_bar") or self.statusBar() is None:
-            self.status_bar = QStatusBar()
-            self.setStatusBar(self.status_bar)
-        
-        # Загружаем сохраненный workspace
-        saved_ws = self.settings.value(self.WORKSPACE_SETTINGS_KEY, "")
-        if saved_ws:
-            idx = self.top_bar.workspace_combo.findText(saved_ws)
+        saved = self.settings.value("app/workspace", "")
+        if saved:
+            idx = self.top_bar.workspace_combo.findText(saved)
             if idx >= 0:
                 self.top_bar.workspace_combo.setCurrentIndex(idx)
+
+    def _setup_panels(self):
+        panels_config = [
+            ("solution_explorer", SolutionExplorer, Qt.DockWidgetArea.LeftDockWidgetArea),
+            ("tools", ToolsPanel, Qt.DockWidgetArea.LeftDockWidgetArea),
+            ("chat", ChatPanel, Qt.DockWidgetArea.RightDockWidgetArea),
+            ("logs", LogsPanel, Qt.DockWidgetArea.BottomDockWidgetArea),
+        ]
         
-        # Создаем меню для панелей
-        self.rebuild_panel_actions_menu()
+        for key, panel_class, area in panels_config:
+            try:
+                panel = panel_class(self)
+                self.addDockWidget(area, panel)
+                self.dock_widgets[key] = panel
+            except Exception as e:
+                print(f"[WARN] Panel {key}: {e}")
         
-        # Обновляем иконки для ToolsPanel если нужно
-        self._update_tools_panel_icons()
-
-    def _create_panels(self):
-        """Создает все панели"""
-        try:
-            self.solution_explorer = SolutionExplorer(self)
-            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.solution_explorer)
-            self.dock_widgets["solution_explorer"] = self.solution_explorer
-            print("✅ Создана панель SolutionExplorer")
-        except Exception as e:
-            print(f"⚠️ Ошибка создания SolutionExplorer: {e}")
-
-        try:
-            self.tools_panel = ToolsPanel(self)
-            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tools_panel)
-            self.dock_widgets["tools"] = self.tools_panel
-            print("✅ Создана панель ToolsPanel")
-        except Exception as e:
-            print(f"⚠️ Ошибка создания ToolsPanel: {e}")
-
-        try:
-            self.chat_panel = ChatPanel(self)
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.chat_panel)
-            self.dock_widgets["chat"] = self.chat_panel
-            print("✅ Создана панель ChatPanel")
-        except Exception as e:
-            print(f"⚠️ Ошибка создания ChatPanel: {e}")
-
-        try:
-            self.logs_panel = LogsPanel(self)
-            self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.logs_panel)
-            self.dock_widgets["logs"] = self.logs_panel
-            print("✅ Создана панель LogsPanel")
-        except Exception as e:
-            print(f"⚠️ Ошибка создания LogsPanel: {e}")
-        
-        # Пытаемся сгруппировать панели
-        try:
-            if "solution_explorer" in self.dock_widgets and "tools" in self.dock_widgets:
+        if "solution_explorer" in self.dock_widgets and "tools" in self.dock_widgets:
+            try:
                 self.tabifyDockWidget(
-                    self.dock_widgets["solution_explorer"], 
+                    self.dock_widgets["solution_explorer"],
                     self.dock_widgets["tools"]
                 )
                 self.dock_widgets["solution_explorer"].raise_()
-        except Exception as e:
-            print(f"⚠️ Ошибка группировки панелей: {e}")
-
-    def _update_tools_panel_icons(self):
-        """Обновить иконки в ToolsPanel"""
-        if hasattr(self, 'tools_panel'):
-            icon_color = "#FFFFFF" if self.current_theme == "dark" else "#000000"
-            
-            # Обновляем иконки кнопок если они есть
-            if hasattr(self.tools_panel, 'btn_table'):
-                icon = IconManager.get_icon("table", 20, icon_color)
-                if not icon.isNull():
-                    self.tools_panel.btn_table.setIcon(icon)
-            
-            if hasattr(self.tools_panel, 'btn_note'):
-                icon = IconManager.get_icon("note", 20, icon_color)
-                if not icon.isNull():
-                    self.tools_panel.btn_note.setIcon(icon)
-            
-            if hasattr(self.tools_panel, 'btn_graph'):
-                icon = IconManager.get_icon("graph", 20, icon_color)
-                if not icon.isNull():
-                    self.tools_panel.btn_graph.setIcon(icon)
-            
-            if hasattr(self.tools_panel, 'btn_task'):
-                icon = IconManager.get_icon("task", 20, icon_color)
-                if not icon.isNull():
-                    self.tools_panel.btn_task.setIcon(icon)
+            except Exception:
+                pass
+        
+        self._rebuild_panels_menu()
 
     def _setup_connections(self):
-        """Подключает все сигналы"""
-        # Подключаем верхнюю панель
-        self.top_bar.workspace_changed.connect(self.on_workspace_changed)
-        self.top_bar.theme_toggle_requested.connect(self.toggle_theme)
+        self.top_bar.workspace_changed.connect(self._on_workspace_changed)
+        self.top_bar.theme_toggle_requested.connect(self._toggle_theme)
+        self.top_bar.profile_requested.connect(self._open_profile)
         
-        # ПОДКЛЮЧАЕМ КНОПКИ TOOLSPANEL - ВАЖНО!
-        if hasattr(self, 'tools_panel'):
-            if hasattr(self.tools_panel, 'btn_table'):
-                self.tools_panel.btn_table.clicked.connect(lambda: self._open_placeholder_tab("Таблица"))
-                print("✅ Подключена кнопка Таблица")
-            
-            if hasattr(self.tools_panel, 'btn_note'):
-                self.tools_panel.btn_note.clicked.connect(lambda: self._open_placeholder_tab("Заметка"))
-                print("✅ Подключена кнопка Заметка")
-            
-            if hasattr(self.tools_panel, 'btn_graph'):
-                self.tools_panel.btn_graph.clicked.connect(lambda: self._open_placeholder_tab("Граф"))
-                print("✅ Подключена кнопка Граф")
-            
-            if hasattr(self.tools_panel, 'btn_task'):
-                self.tools_panel.btn_task.clicked.connect(lambda: self._open_placeholder_tab("Задача"))
-                print("✅ Подключена кнопка Задача")
-        
-        # Подключаем закрытие вкладок
         if hasattr(self, "main_tab_widget"):
-            self.main_tab_widget.tabCloseRequested.connect(self.close_tab)
+            self.main_tab_widget.tabCloseRequested.connect(self._close_tab)
+        
+        self._connect_tools_panel()
 
-    def _open_placeholder_tab(self, title: str):
-        """Создает вкладку - ТОЧНО КАК В РАБОТАЮЩЕЙ ВЕРСИИ"""
-        if not hasattr(self, "main_tab_widget"):
+    def _connect_tools_panel(self):
+        tools = self.dock_widgets.get("tools")
+        if not tools:
+            print("[WARN] ToolsPanel not found")
             return
-
-        try:
-            if title == "Заметка":
-                w = MarkdownNoteTab()
-                if hasattr(w, 'parent'):
-                    w.parent = self
-                tab_title = "📝 Заметка"
-            elif title == "Таблица":
-                w = TableEditorTab()
-                if hasattr(w, 'parent'):
-                    w.parent = self
-                tab_title = "📊 Таблица"
-            elif title == "Граф":
-                w = GraphTab()
-                if hasattr(w, 'parent'):
-                    w.parent = self
-                tab_title = "🕸️ Граф"
-            elif title == "Задача":
-                w = TaskTab()
-                if hasattr(w, 'parent'):
-                    w.parent = self
-                tab_title = "✅ Задача"
+        
+        # Fixed mapping with correct button names
+        buttons = {
+            "btn_table": "Table",
+            "btn_note": "Note",
+            "btn_chart": "Graph",       # btn_chart -> Graph
+            "btn_task": "Task",
+            "btn_diagramm": "Diagram",  # btn_diagramm -> Diagram
+        }
+        
+        connected = 0
+        for attr, tab_type in buttons.items():
+            btn = getattr(tools, attr, None)
+            if btn:
+                btn.clicked.connect(lambda checked, t=tab_type: self._create_tab(t))
+                connected += 1
+                print(f"  [OK] {attr} -> {tab_type}")
             else:
-                # Заглушка для других типов
-                w = QWidget()
-                layout = QVBoxLayout(w)
-                te = QTextEdit()
-                te.setPlainText(f"{title} — содержание (заглушка).")
-                layout.addWidget(te)
-                tab_title = title
-            
-            # Добавляем вкладку
-            index = self.main_tab_widget.addTab(w, tab_title)
+                print(f"  [WARN] {attr} not found")
+        
+        print(f"[OK] Connected {connected}/{len(buttons)} tool buttons")
+
+    def _create_tab(self, tab_type: str):
+        if not hasattr(self, "main_tab_widget"):
+            QMessageBox.warning(self, "Error", "TabWidget not initialized")
+            return
+        
+        print(f"[INFO] Creating tab: {tab_type}")
+        
+        widget, title = TabFactory.create(tab_type, self)
+        
+        if widget:
+            index = self.main_tab_widget.addTab(widget, title)
             self.main_tab_widget.setCurrentIndex(index)
-            print(f"✅ Создана вкладка: {title}")
-            
-        except Exception as e:
-            print(f"❌ Ошибка создания вкладки {title}: {e}")
-            # Создаем простую заглушку при ошибке
-            w = QWidget()
-            layout = QVBoxLayout(w)
-            layout.addWidget(QLabel(f"Ошибка создания {title}: {e}"))
-            self.main_tab_widget.addTab(w, f"❌ {title}")
+            self.statusBar().showMessage(f"Created: {title}", 2000)
 
-    def rebuild_panel_actions_menu(self):
-        """Создает меню для скрытия/показа панелей"""
-        actions = []
-        self._panel_actions.clear()
-        
-        for key, dock in self.dock_widgets.items():
-            title = dock.windowTitle() or key
-            act = QAction(title, self)
-            act.setCheckable(True)
-            act.setChecked(dock.isVisible())
-            
-            # Создаем замыкание для переключения видимости
-            def make_toggler(dock_key=key):
-                def toggle():
-                    w = self.dock_widgets[dock_key]
-                    visible = not w.isVisible()
-                    w.setVisible(visible)
-                    if visible:
-                        w.raise_()
-                return toggle
-            
-            act.triggered.connect(make_toggler())
-            actions.append(act)
-            self._panel_actions[key] = act
-        
-        self.top_bar.set_panels_menu(actions)
-
-    def close_tab(self, index):
-        """Закрывает вкладку"""
-        if self.main_tab_widget.count() > 1:
+    def _close_tab(self, index: int):
+        if self.main_tab_widget.count() > 0:
             self.main_tab_widget.removeTab(index)
 
-    def on_workspace_changed(self, workspace_name: str):
-        """Обработчик изменения workspace"""
-        self.settings.setValue(self.WORKSPACE_SETTINGS_KEY, workspace_name)
-        if hasattr(self, "status_bar"):
-            self.status_bar.showMessage(f"Рабочее пространство: {workspace_name}", 2500)
+    def _on_workspace_changed(self, name: str):
+        self.settings.setValue("app/workspace", name)
+        self.statusBar().showMessage(f"Workspace: {name}", 2000)
 
-    def open_profile(self):
-        """Открывает диалог профиля"""
+    def _open_profile(self):
         try:
             dlg = ProfileDialog(self)
             dlg.exec()
         except Exception as e:
-            print(f"⚠️ Ошибка открытия профиля: {e}")
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "Ошибка", f"Не удалось открыть профиль: {e}")
+            QMessageBox.warning(self, "Error", str(e))
 
-    def apply_theme(self):
-        """Применяет тему"""
+    def _toggle_theme(self):
+        self.current_theme = self.theme_manager.toggle_theme()
+        self._apply_theme()
+
+    def _apply_theme(self):
         app = QtWidgets.QApplication.instance()
         if not app:
             return
+        
+        if self.current_theme == "dark":
+            app.setStyleSheet(StyleSheets.dark_theme())
+        else:
+            app.setStyleSheet(StyleSheets.light_theme())
+        
+        self.top_bar.set_theme(self.current_theme)
+        self._update_tools_icons()
+        
+        theme_name = "dark" if self.current_theme == "dark" else "light"
+        self.statusBar().showMessage(f"Theme: {theme_name}", 2000)
 
-        setup_app_theme(app, self.current_theme)
-        self.top_bar.update_theme(self.current_theme)
-        self._update_tools_panel_icons()
-        self._force_style_update()
+    def _update_tools_icons(self):
+        tools = self.dock_widgets.get("tools")
+        if not tools:
+            return
+        
+        icons = [
+            ("btn_table", "table"),
+            ("btn_note", "note"),
+            ("btn_chart", "chart"),
+            ("btn_task", "task"),
+            ("btn_diagramm", "diagram"),
+        ]
+        
+        for attr, icon_key in icons:
+            btn = getattr(tools, attr, None)
+            if btn:
+                icon = IconManager.get(icon_key, 20, COLORS.ACCENT_BRIGHT)
+                if not icon.isNull():
+                    btn.setIcon(icon)
 
-        if hasattr(self, "status_bar"):
-            theme_name = "темная" if self.current_theme == "dark" else "светлая"
-            self.status_bar.showMessage(f"Тема: {theme_name}", 2000)
+    def _rebuild_panels_menu(self):
+        actions = []
+        
+        for key, dock in self.dock_widgets.items():
+            act = QAction(dock.windowTitle() or key, self)
+            act.setCheckable(True)
+            act.setChecked(dock.isVisible())
+            
+            def make_toggle(k=key):
+                def toggle():
+                    w = self.dock_widgets[k]
+                    w.setVisible(not w.isVisible())
+                    if w.isVisible():
+                        w.raise_()
+                return toggle
+            
+            act.triggered.connect(make_toggle())
+            actions.append(act)
+        
+        self.top_bar.set_panels_menu(actions)
 
-    def _force_style_update(self):
-        """Принудительно обновляет стили"""
-        self.style().unpolish(self)
-        self.style().polish(self)
-
-        if self.centralWidget():
-            self.centralWidget().style().unpolish(self.centralWidget())
-            self.centralWidget().style().polish(self.centralWidget())
-
-        self.top_bar.style().unpolish(self.top_bar)
-        self.top_bar.style().polish(self.top_bar)
-
-        for dock in self.dock_widgets.values():
-            dock.style().unpolish(dock)
-            dock.style().polish(dock)
-            if dock.widget():
-                dock.widget().style().unpolish(dock.widget())
-                dock.widget().style().polish(dock.widget())
-
-    def toggle_theme(self):
-        """Переключает тему"""
-        self.current_theme = self.theme_manager.toggle_theme()
-        self.apply_theme()
+    def _log_status(self):
+        errors = LazyImporter.get_errors()
+        if errors:
+            print("\n[WARN] Import errors:")
+            for key, err in errors.items():
+                print(f"   {key}: {err}")
+        
+        print(f"\n[OK] {CONFIG.WINDOW_TITLE} started")
 
 # =============================================================================
-# ТОЧКА ВХОДА
+# ENTRY POINT
 # =============================================================================
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    setup_app_theme(app)
-    w = MainWindow()
-    w.show()
+    app.setApplicationName(CONFIG.APP_NAME)
+    app.setOrganizationName(CONFIG.ORG_NAME)
+    app.setStyle("Fusion")
+    
+    # Apply dark theme by default
+    app.setStyleSheet(StyleSheets.dark_theme())
+    
+    window = MainWindow()
+    window.show()
+    
     sys.exit(app.exec())
 
 if __name__ == "__main__":
