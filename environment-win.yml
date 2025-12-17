@@ -1,49 +1,69 @@
 name: worrrkspace
 channels:
   - conda-forge
-  - defaults
-
+  - pytorch
+  - nvidia
 dependencies:
+  # --- Core ---
   - python=3.10.12
+  - pip
   - numpy
   - pandas
-  - scikit-learn
-  - matplotlib
-  - seaborn
-  - jupyter
-  - jupyterlab
   - polars
-  - duckdb
-  - pyqt=6
-  - postgresql
   - pyarrow
+  - duckdb
   - orjson
-  - mlflow
+  - xxhash
 
-  # build tools
+  # --- AI & Compute ---
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - faiss-gpu
+  - libtorrent-rasterbar
+
+  # --- UI & System ---
+  - pyqt=6
+  - qt-webengine
+  - psutil
+  - zeroconf
+
+  # --- Build Tools ---
   - cmake
   - ninja
-  - m2-make
-  - m2-patch
-
-  # MSVC discovery tools
   - vswhere
-
-  # Windows runtime
-  - vc=14.2
   - vs2015_runtime
 
-  - pip
-
   - pip:
-      - torch>=2.0.0
-      - torchvision>=0.15.0
-      - torchaudio>=2.0.0
-      - transformers>=4.28.0
-      - robyn>=0.14.0
-      - psqlpy>=0.1.0
+      # --- Networking & VPN ---
+      - aioquic
+      - wmi  # Управление Windows интерфейсами (для VPN)
+      - pywin32  # WinAPI
+      - cryptography
+      - netifaces
+
+      # --- Distributed Compute ---
+      - ray[default]
+      - lz4
+      - accelerate
+      # bitsandbytes на Windows требует специальной установки, 
+      # но в requirements мы его оставим, pip попробует найти wheel, мало ли прокатит
+      - bitsandbytes-windows  
+      - onnxruntime-gpu
+
+      # --- UI & Utils ---
+      - qasync
+      - NodeGraphQt
+      - pytablericons
+      - superqt
+      - playwright
+      - watchdog
+      
+      # --- Data & Viz ---
+      - transformers
+      - robyn
+      - psqlpy
       - markdown
       - plotly
-      - pyinstaller
-      - pywin32
-      - comtypes
+      - pyinstaller #playwright install chromium

@@ -22,8 +22,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QIcon, QAction
 
 try:
-    from ..src.python.theme_util import SystemThemeDetector
-    from ..src.python.theme_manager import setup_app_theme, ThemeManager
+    from ..core.python.theme_util import SystemThemeDetector
+    from ..core.python.theme_manager import setup_app_theme, ThemeManager
 except ImportError as e:
     print(f"Import error: {e}")
     # Fallback: добавляем путь вручную для отладки

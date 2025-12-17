@@ -18,7 +18,7 @@ DEFAULT_ENV_PATH = "db\.env"
 
 
 try:
-    from ..src.python.theme_util import SystemThemeDetector
+    from ..core.python.theme_util import SystemThemeDetector
 except ImportError as e:
     print(f"Import error: {e}")
     # Fallback: добавляем путь вручную для отладки

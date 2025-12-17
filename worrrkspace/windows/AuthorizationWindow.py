@@ -28,7 +28,7 @@ if current_dir not in sys.path:
 
 # Попытка импорта SystemThemeDetector
 try:
-    from ..src.python.theme_util import SystemThemeDetector
+    from ..core.python.theme_util import SystemThemeDetector
 except ImportError as e:
     print(f"Import error: {e}")
     # Fallback: добавляем путь вручную для отладки

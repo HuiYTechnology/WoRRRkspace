@@ -1,56 +1,74 @@
-name: worrrkspace # нужны тесты
-channels:   
+name: worrrkspace
+channels:
   - conda-forge
+  - pytorch
+  - nvidia
 dependencies:
+  # --- Core ---
   - python=3.10.12
+  - pip
   - numpy
   - pandas
-  - scikit-learn
-  - matplotlib
-  - seaborn
-  - jupyter
-  - jupyterlab
   - polars
-  - duckdb
-  - pyqt=6
-  - postgresql
   - pyarrow
+  - duckdb
   - orjson
-  - mlflow
-  
-  # Linux-specific tools
+  - xxhash  # Быстрое хеширование для VCS
+
+  # --- AI & Compute ---
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - faiss-gpu  # Для векторного поиска (RAG/Magic Node)
+  - libtorrent-rasterbar  # P2P Core (C++ binding)
+
+  # --- UI & System ---
+  - pyqt=6
+  - qt-webengine  # Браузерный движок (WebEngine)
+  - psutil
+  - zeroconf  # Поиск пиров в локалке
+
+  # --- Build Tools ---
   - cmake
   - ninja
   - make
-  - gxx_linux-64  # C++ compiler
-  - gcc_linux-64  # C compiler
-  - gfortran_linux-64
+  - gxx_linux-64
+  - gcc_linux-64
   - binutils_linux-64
-  - libgcc-ng
-  - libstdcxx-ng
-  - libgfortran5
-  - libgfortran-ng
-  
-  # Linux system libs
-  - fontconfig
-  - freetype
+  - patchelf
+
+  # --- Linux System Libs ---
   - libxcb
   - libxkbcommon
-  - xorg-libx11
-  - xorg-libxext
-  - xorg-libxrender
-  - xorg-libxi
-  
-  - pip
-  
+  - dbus
+
   - pip:
-      - torch>=2.0.0
-      - torchvision>=0.15.0
-      - torchaudio>=2.0.0
-      - transformers>=4.28.0
-      - robyn>=0.14.0
-      - psqlpy>=0.1.0
+      # --- Networking & VPN ---
+      - aioquic  # QUIC протокол (Transport)
+      - pyroute2  # Управление интерфейсами Linux (для VPN)
+      - cryptography
+      - netifaces
+
+      # --- Distributed Compute ---
+      - ray[default]  # Compute Pool Core
+      - lz4  # Сжатие данных сети
+      - accelerate  # Распределение моделей
+      - bitsandbytes  # Квантование (Int8)
+      - onnxruntime-gpu  # Быстрый инференс
+
+      # --- UI & Utils ---
+      - qasync  # Asyncio + PyQt bridge
+      - NodeGraphQt  # Редактор пайплайнов
+      - pytablericons  # Иконки
+      - superqt  # Доп. виджеты
+      - playwright  # Веб-автоматизация
+      - watchdog  # Слежение за файлами
+      
+      # --- Data & Viz ---
+      - transformers>=4.30.0
+      - robyn
+      - psqlpy
       - markdown
       - plotly
-      - pyinstaller
-      - patchelf  # Для исправления библиотек в Linux
+      - pyinstaller #playwright install chromium

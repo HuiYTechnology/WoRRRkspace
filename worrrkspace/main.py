@@ -114,7 +114,7 @@ def run_authorization():
 
         # Пробуем импортировать SystemThemeDetector
         try:
-            from src.python.theme_util import SystemThemeDetector
+            from core.python.theme_util import SystemThemeDetector
         except ImportError:
             print("SystemThemeDetector не найден, используем заглушку")
 
